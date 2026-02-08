@@ -1,0 +1,23 @@
+<view class="container">
+  <view class="robot-list">
+    <block wx:if="{{robots.length > 0}}">
+      <view class="robot-item" wx:for="{{robots}}" wx:key="robot_id" bindtap="goToDetail" data-id="{{item.robot_id || item.id}}">
+        <image class="robot-avatar" src="{{item.icon || item.avatar || '/image/icon_API.png'}}" mode="aspectFill"></image>
+        <view class="robot-info">
+          <text class="robot-name">{{item.name}}</text>
+          <text class="robot-desc">{{item.description || '暂无描述'}}</text>
+        </view>
+        <view class="action-arrow">
+           <view class="arrow"></view>
+        </view>
+      </view>
+    </block>
+    <view wx:else class="empty-state">
+      <text class="empty-text">暂无机器人，点击右上角添加</text>
+    </view>
+  </view>
+
+  <view class="add-btn" bindtap="goToAdd">
+    <image class="add-icon" src="/image/plus.png"></image>
+  </view>
+</view>

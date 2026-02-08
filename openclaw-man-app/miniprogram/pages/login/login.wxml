@@ -1,0 +1,22 @@
+<view class="container">
+  <view class="header">
+    <view class="title">欢迎使用 OpenClaw-Man</view>
+    <view class="subtitle">请完善你的头像和昵称以继续</view>
+  </view>
+  
+  <view class="form-area">
+    <button class="avatar-wrapper" open-type="chooseAvatar" bind:chooseavatar="onChooseAvatar">
+      <image class="avatar" src="{{avatarUrl}}"></image>
+      <view class="edit-icon">
+        <image class="camera-icon" src="/image/icon_API.png"></image>
+      </view>
+    </button>
+    
+    <view class="input-group">
+      <text class="label">昵称</text>
+      <input type="nickname" class="nickname-input" placeholder="请输入昵称" bindchange="onNicknameChange" bindinput="onNicknameInput" />
+    </view>
+  </view>
+  
+  <button class="login-btn" type="primary" bindtap="handleLogin" disabled="{{!hasUserInfo}}">进入OpenClaw-Man</button>
+</view>

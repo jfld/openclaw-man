@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/openclaw/openclaw/main/src/plugins/schema.json",
+  "id": "we-xcx",
+  "name": "WE XCX",
+  "description": "Integration with WE XCX Chat Service",
+  "kind": "channel",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "apiKey": {
+        "type": "string",
+        "title": "API Key"
+      },
+      "apiEndpoint": {
+        "type": "string",
+        "title": "API Endpoint",
+        "default": "www.xxxxxx.top/ocms"
+      },
+      "useTls": {
+        "type": "boolean",
+        "title": "Use TLS/SSL",
+        "default": true
+      }
+    }
+  },
+  "entry": "dist/index.js",
+  "uiHints": {
+    "icon": "message-circle"
+  }
+}

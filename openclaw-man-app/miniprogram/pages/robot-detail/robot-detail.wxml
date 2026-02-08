@@ -1,0 +1,23 @@
+<view class="container">
+  <view class="header">
+    <image class="avatar" src="{{robot.icon || robot.avatar || '/image/icon_API.png'}}" mode="aspectFill"></image>
+    <text class="name">{{robot.name}}</text>
+  </view>
+
+  <view class="info-group">
+    <view class="info-item">
+      <text class="label">描述</text>
+      <text class="value">{{robot.description || '暂无描述'}}</text>
+    </view>
+    <view class="info-item">
+      <text class="label">创建时间</text>
+      <text class="value">{{createdAtFormatted}}</text>
+    </view>
+  </view>
+
+  <view class="actions">
+    <button class="chat-btn" type="primary" bindtap="startChat">新建对话</button>
+    <button class="edit-btn" bindtap="editRobot">编辑机器人</button>
+    <button class="delete-btn" type="warn" bindtap="deleteRobot">删除机器人</button>
+  </view>
+</view>

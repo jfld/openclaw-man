@@ -1,0 +1,75 @@
+/* pages/profile/profile.wxss */
+.container {
+  background-color: #f6f6f6;
+  min-height: 100vh;
+  padding: 0;
+  display: block;
+}
+
+.header {
+  background-color: #fff;
+  padding: 60rpx 40rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.avatar {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  margin-bottom: 30rpx;
+  background-color: #eee;
+}
+
+.nickname {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.login-btn {
+  font-size: 30rpx;
+  width: 300rpx;
+}
+
+.menu-list {
+  background-color: #fff;
+  padding: 0 30rpx;
+}
+
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30rpx 0;
+  border-bottom: 1rpx solid #eee;
+}
+
+.menu-item:last-child {
+  border-bottom: none;
+}
+
+.menu-text {
+  font-size: 32rpx;
+  color: #333;
+}
+
+.arrow {
+  width: 16rpx;
+  height: 16rpx;
+  border-top: 3rpx solid #ccc;
+  border-right: 3rpx solid #ccc;
+  transform: rotate(45deg);
+}
+
+.footer {
+  margin-top: 60rpx;
+  text-align: center;
+}
+
+.version {
+  font-size: 24rpx;
+  color: #999;
+}

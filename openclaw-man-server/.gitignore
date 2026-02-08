@@ -1,0 +1,8 @@
+app.log
+/src/openclaw_man_server/__pycache__
+/temp_openclaw
+.env
+__pycache__/
+*.py[cod]
+.venv/
+

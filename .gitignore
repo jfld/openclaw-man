@@ -1,0 +1,10 @@
+/openclaw-man-app/miniprogram/miniprogram_npm
+/openclaw-man-app/miniprogram/node_modules
+/openclaw-man-we-app-channel/node_modules
+openclaw-man-we-app-channel/.DS_Store
+openclaw-man-we-app-channel/channel/.DS_Store
+openclaw-man-server/src/openclaw_man_server/.DS_Store
+openclaw-man-server/src/.DS_Store
+openclaw-man-app/miniprogram/.DS_Store
+openclaw-man-app/.DS_Store
+.DS_Store

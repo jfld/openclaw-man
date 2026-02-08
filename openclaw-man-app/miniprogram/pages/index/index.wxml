@@ -1,0 +1,46 @@
+<view class="container">
+  <view class="chat-list">
+    <block wx:if="{{chatSessions.length > 0}}">
+      <view class="chat-item-wrapper" wx:for="{{chatSessions}}" wx:key="id">
+        <movable-area class="item-movable-area">
+          <movable-view 
+            class="item-movable-view" 
+            direction="horizontal" 
+            out-of-bounds="{{false}}" 
+            damping="100" 
+            x="{{item.x}}" 
+            data-index="{{index}}"
+            bindchange="onMovableChange"
+            bindtouchend="onMovableTouchEnd"
+          >
+            <view class="chat-item-content" bindtap="goToChat" data-id="{{item.id}}" data-robotid="{{item.robotId}}">
+              <view class="avatar-container">
+                <image class="avatar" src="{{item.robotAvatar}}" mode="aspectFill"></image>
+              </view>
+              <view class="content">
+                <view class="top-row">
+                  <text class="name">{{item.robotName}}</text>
+                  <view class="right-info">
+                    <text class="title-preview" wx:if="{{item.title || item.firstMessage}}">{{item.title || item.firstMessage}}</text>
+                    <text class="time">{{item.timeStr}}</text>
+                  </view>
+                </view>
+                <view class="bottom-row">
+                  <text class="message">{{item.lastMessage}}</text>
+                </view>
+              </view>
+            </view>
+            <view class="slide-actions">
+              <view class="slide-btn edit" bindtap="editConversation" data-id="{{item.id}}" data-title="{{item.title}}">编辑</view>
+              <view class="slide-btn delete" bindtap="deleteConversation" data-id="{{item.id}}">删除</view>
+            </view>
+          </movable-view>
+        </movable-area>
+      </view>
+    </block>
+    <view wx:else class="empty-state">
+      <image class="empty-icon" src="/image/icon_component.png"></image>
+      <text class="empty-text">暂无消息，去"机器人"页面新建对话吧</text>
+    </view>
+  </view>
+</view>

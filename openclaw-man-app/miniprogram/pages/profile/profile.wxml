@@ -1,0 +1,31 @@
+<view class="container">
+  <view class="header">
+    <block wx:if="{{userInfo}}">
+      <image class="avatar" src="{{userInfo.avatarUrl}}"></image>
+      <text class="nickname">{{userInfo.nickName}}</text>
+    </block>
+    <block wx:else>
+      <image class="avatar" src="/image/wechat.png"></image>
+      <button class="login-btn" type="primary" bindtap="login">微信一键登录</button>
+    </block>
+  </view>
+
+  <view class="menu-list">
+    <!-- <view class="menu-item">
+      <text class="menu-text">设置</text>
+      <text class="arrow">></text>
+    </view> -->
+    <view class="menu-item" bindtap="clearCache">
+      <text class="menu-text">清除本地缓存</text>
+      <view class="arrow"></view>
+    </view>
+    <view class="menu-item" bindtap="about">
+      <text class="menu-text">关于我们</text>
+      <view class="arrow"></view>
+    </view>
+  </view>
+  
+  <view class="footer">
+    <text class="version">Version 1.0.0</text>
+  </view>
+</view>

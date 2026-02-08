@@ -1,0 +1,67 @@
+<view class="container">
+  <scroll-view class="chat-list" scroll-y scroll-into-view="{{toView}}" scroll-with-animation bindtap="onListTap">
+    <view class="chat-item {{item.type === 'user' ? 'chat-item-user' : 'chat-item-robot'}}" wx:for="{{messages}}" wx:key="id" id="msg-{{index}}">
+      
+      <image wx:if="{{item.type === 'robot'}}" class="avatar" src="{{robot.icon || robot.avatar || '/image/icon_API.png'}}"></image>
+      
+      <view class="bubble {{item.type === 'user' ? 'bubble-user' : 'bubble-robot'}}">
+        <block wx:if="{{item.msgType === 'image'}}">
+          <image src="{{item.content}}" mode="widthFix" class="msg-image" bindtap="previewImage" data-src="{{item.content}}"></image>
+        </block>
+        <block wx:else>
+          <text>{{item.content}}</text>
+        </block>
+      </view>
+      
+      <image wx:if="{{item.type === 'user'}}" class="avatar" src="{{userInfo.avatarUrl || '/image/wechat.png'}}"></image>
+      
+    </view>
+    <view id="scroll-bottom" style="height: 20rpx;"></view>
+  </scroll-view>
+
+  <!-- Bottom Input Area -->
+  <view class="footer-area {{keyboardHeight > 0 ? 'keyboard-open' : ''}}" style="bottom: {{keyboardHeight}}px">
+    <view class="input-area">
+      <view class="input-wrapper {{isRobotOffline ? 'disabled' : ''}}">
+        <textarea 
+          class="input-textarea" 
+          value="{{inputValue}}" 
+          bindinput="onInput" 
+          bindconfirm="sendMessage" 
+          confirm-type="send" 
+          auto-height 
+          fixed="true"
+          cursor-spacing="15" 
+          show-confirm-bar="{{false}}"
+          placeholder="{{isRobotOffline ? robotOfflineTip : '请输入'}}" 
+          placeholder-class="input-placeholder"
+          maxlength="-1"
+          adjust-position="{{false}}" 
+          bindfocus="onFocus" 
+          bindblur="onBlur"
+          disabled="{{isRobotOffline}}"
+        />
+      </view>
+      
+      <view class="icon-container">
+        <image class="icon-btn" src="/image/plus.png" bindtap="toggleMorePanel" style="{{isRobotOffline ? 'opacity: 0.5' : ''}}"></image>
+      </view>
+    </view>
+
+    <!-- More Action Panel -->
+    <view class="more-panel" wx:if="{{showMorePanel}}">
+      <view class="action-item" bindtap="chooseImage">
+        <view class="action-icon-box">
+          <image class="action-icon" src="/image/icon_component.png"></image>
+        </view>
+        <text class="action-text">照片</text>
+      </view>
+      <view class="action-item" bindtap="takePhoto">
+        <view class="action-icon-box">
+          <image class="action-icon" src="/image/icon_API.png"></image>
+        </view>
+        <text class="action-text">拍摄</text>
+      </view>
+    </view>
+  </view>
+</view>
