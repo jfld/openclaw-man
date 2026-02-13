@@ -2,9 +2,9 @@ const WebSocket = require('ws');
 
 // 配置
 const config = {
-    apiKey: process.env.API_KEY, // 必须通过环境变量提供
-    endpoint: process.env.API_ENDPOINT || '127.0.0.1:8080/ocms',
-    useTls: process.env.USE_TLS === 'true', // 默认 false (开发环境)
+    apiKey: 'api_key_123', //process.env.API_KEY, // 必须通过环境变量提供
+    endpoint: process.env.API_ENDPOINT || '127.0.0.1:8812/ocms',
+    useTls: process.env.USE_TLS === 'false', // 默认 false (开发环境)
 };
 
 if (!config.apiKey) {

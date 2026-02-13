@@ -90,3 +90,12 @@ class Conversation(ConversationBase):
 
     class Config:
         from_attributes = True
+
+# Upload Schemas
+class UploadResponse(BaseModel):
+    success: bool
+    file_path: str
+    file_name: str
+    file_size: int
+    content_type: str
+    message: Optional[str] = None

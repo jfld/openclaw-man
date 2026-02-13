@@ -1,0 +1,50 @@
+[
+  {
+    "id": "msg_1770949515.834966",
+    "timestamp": 1770949515.834998,
+    "sender": "user",
+    "text": "你好，我想咨询一些问题",
+    "robot_id": "robot_001",
+    "conversation_id": "test_conv_001"
+  },
+  {
+    "id": "msg_1770949515.836802",
+    "timestamp": 1770949515.836811,
+    "sender": "robot",
+    "text": "你好！很高兴为您服务，请问有什么可以帮助您的？",
+    "robot_id": "robot_001",
+    "conversation_id": "test_conv_001"
+  },
+  {
+    "id": "msg_1770949515.83877",
+    "timestamp": 1770949515.838776,
+    "sender": "user",
+    "text": "这个服务是怎么收费的？",
+    "robot_id": "robot_001",
+    "conversation_id": "test_conv_001"
+  },
+  {
+    "id": "msg_1770949515.839931",
+    "timestamp": 1770949515.839936,
+    "sender": "robot",
+    "text": "我们提供按月付费和按年付费两种方案，月付99元，年付999元。",
+    "robot_id": "robot_001",
+    "conversation_id": "test_conv_001"
+  },
+  {
+    "id": "msg_1770949515.841606",
+    "timestamp": 1770949515.841613,
+    "sender": "user",
+    "text": "好的，我再考虑一下",
+    "robot_id": "robot_001",
+    "conversation_id": "test_conv_001"
+  },
+  {
+    "id": "msg_1770949515.842994",
+    "timestamp": 1770949515.843001,
+    "sender": "robot",
+    "text": "好的，有任何问题随时联系我。",
+    "robot_id": "robot_001",
+    "conversation_id": "test_conv_001"
+  }
+]

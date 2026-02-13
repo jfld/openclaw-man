@@ -1,12 +1,19 @@
-from fastapi import FastAPI, Depends, HTTPException, status, APIRouter
+from fastapi import FastAPI, Depends, HTTPException, status, APIRouter, UploadFile, File, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 from sqlalchemy import inspect, text
-from typing import List
+from typing import List, Optional
 from contextlib import asynccontextmanager
 from jose import jwt, JWTError
+from datetime import datetime
+import os
+import uuid
+from pathlib import Path
 
 from . import crud, models, schemas, auth
 from .database import SessionLocal, engine, create_database_if_not_exists
+from ..config import get_upload_config, ensure_upload_directory
+from ..chat_history import get_chat_history_service
+from ..ws_server.bridge import ManServerServer
 
 def check_and_update_schema(engine):
     """
@@ -31,11 +38,11 @@ def check_and_update_schema(engine):
 async def lifespan(app: FastAPI):
     # 启动时
     print("正在初始化数据库...")
-    create_database_if_not_exists()
-    models.Base.metadata.create_all(bind=engine)
+    # create_database_if_not_exists()
+    # models.Base.metadata.create_all(bind=engine)
     
-    # 执行自动 Schema 更新
-    check_and_update_schema(engine)
+    # # 执行自动 Schema 更新
+    # check_and_update_schema(engine)
     
     print("数据库初始化完成。")
     yield
@@ -43,7 +50,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="OpenClaw ManServer API",
-    description="机器人管理接口 (支持微信小程序登录)",
+    description="机器人管理接口",
     version="1.0.0",
     lifespan=lifespan,
     docs_url="/ocms/docs",
@@ -53,230 +60,136 @@ app = FastAPI(
 
 router = APIRouter()
 
-# 依赖项
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
-# --- Auth Endpoints ---
+# --- Upload Endpoints (Protected) ---
 
-@router.post("/auth/weapp/token", response_model=schemas.Token, summary="微信小程序登录换取令牌")
-async def login_weapp(request: schemas.WeappLoginRequest, db: Session = Depends(get_db)):
-    # 1. 调用微信接口换取 openid
-    # 注意: 实际部署时应从配置读取 appid 和 secret
-    # 这里为了演示，假设 auth 模块有默认值或从环境变量读取
-    # 如果 request 中提供了 appid，也可以使用
-    appid = request.appid or auth.WECHAT_APPID
-    secret = auth.WECHAT_SECRET
-    
-    # 模拟模式 (如果未配置真实 appid)
-    if appid == "your-app-id":
-         # 模拟返回
-         print("Warning: Using Mock Login for testing")
-         openid = f"mock_openid_{request.code}"
-         session_key = "mock_session_key"
-    else:
-        wx_data = await auth.jscode2session(appid, secret, request.code)
-        openid = wx_data.get("openid")
-        session_key = wx_data.get("session_key")
-        
-    if not openid:
-        raise HTTPException(status_code=400, detail="Failed to get openid from WeChat")
-        
-    # 2. 查找或创建用户
-    user = crud.get_user_by_openid(db, openid=openid)
-    if not user:
-        user_create = schemas.UserCreate(openid=openid, nickname="微信用户")
-        user = crud.create_user(db, user_create)
-    
-    # 3. 颁发令牌
-    access_token = auth.create_access_token(data={"sub": str(user.id)})
-    refresh_token = auth.create_refresh_token(data={"sub": str(user.id)})
-    
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-        "expires_in": auth.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        "scope": "profile robots"
-    }
-
-@router.post("/auth/refresh", response_model=schemas.Token, summary="刷新令牌")
-async def refresh_token(request: schemas.RefreshTokenRequest, db: Session = Depends(get_db)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(request.refresh_token, auth.SECRET_KEY, algorithms=[auth.ALGORITHM])
-        user_id: str = payload.get("sub")
-        token_type: str = payload.get("type")
-        if user_id is None or token_type != "refresh":
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
-        
-    # 检查用户是否存在
-    user = crud.get_user(db, user_id=int(user_id))
-    if user is None:
-        raise credentials_exception
-        
-    # 颁发新令牌 (包括新的 refresh token，实现轮换)
-    access_token = auth.create_access_token(data={"sub": str(user.id)})
-    new_refresh_token = auth.create_refresh_token(data={"sub": str(user.id)})
-    
-    return {
-        "access_token": access_token,
-        "refresh_token": new_refresh_token,
-        "token_type": "bearer",
-        "expires_in": auth.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        "scope": "profile robots"
-    }
-
-# --- Robot Endpoints (Protected) ---
-
-@router.post("/robots/", response_model=schemas.RobotCreated, summary="创建机器人")
-def create_robot(
-    robot: schemas.RobotCreate, 
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)
+@router.post("/upload/file", response_model=schemas.UploadResponse, summary="上传文件")
+async def upload_file(
+    file: UploadFile = File(...)
 ):
-    return crud.create_robot(
-        db=db, 
-        robot=robot, 
-        user_id=current_user.id,
-        user_name=current_user.nickname or "WeChat User"
+    """
+    上传单个文件到服务器
+    
+    - 使用时间戳 + UUID 保证文件名唯一性
+    - 返回文件的完整路径（相对于服务器）
+    - 支持图片、文档、视频等常见格式
+    """
+    upload_config = get_upload_config()
+    
+    if not upload_config.get("enabled", True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="文件上传功能已禁用"
+        )
+    
+    # 获取文件名和扩展名
+    original_filename = file.filename
+    file_ext = Path(original_filename).suffix.lower()
+    
+    # 检查文件扩展名是否允许
+    allowed_extensions = upload_config.get("allowed_extensions", [])
+    if file_ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"不支持的文件类型 {file_ext}，允许的类型: {', '.join(allowed_extensions)}"
+        )
+    
+    # 生成唯一文件名: 原始名称_时间戳
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    unique_filename = f"{Path(original_filename).stem}_{timestamp}{file_ext}"
+    
+    # 确保上传目录存在
+    upload_dir = ensure_upload_directory()
+    file_path = upload_dir / unique_filename
+    
+    # 读取文件内容并写入
+    try:
+        content = await file.read()
+        
+        # 检查文件大小
+        max_size = upload_config.get("max_file_size", 10 * 1024 * 1024)  # 默认10MB
+        if len(content) > max_size:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"文件大小超过限制，最大允许 {max_size // (1024*1024)} MB"
+            )
+        
+        # 写入文件
+        with open(file_path, "wb") as f:
+            f.write(content)
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"文件保存失败: {str(e)}"
+        )
+    
+    # 返回文件完整路径（统一使用正斜杠）
+    full_path = str(file_path).replace("\\", "/")
+    
+    return schemas.UploadResponse(
+        success=True,
+        file_path=full_path,
+        file_name=unique_filename,
+        file_size=len(content),
+        content_type=file.content_type or "application/octet-stream",
+        message="文件上传成功"
     )
 
-@router.get("/robots/", response_model=List[schemas.Robot], summary="获取我的机器人列表")
-def read_robots(
-    skip: int = 0, 
-    limit: int = 100, 
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)
-):
-    # 只返回当前用户的机器人
-    robots = crud.get_robots(db, user_id=current_user.id, skip=skip, limit=limit)
-    return robots
+# --- Chat History Endpoints ---
 
-@router.get("/robots/{robot_id}", response_model=schemas.Robot, summary="获取单个机器人信息")
-def read_robot(
-    robot_id: str, 
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)
+@router.get("/chat/history/{user_id}", summary="获取用户聊天记录")
+async def get_chat_history(
+    user_id: str,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    conversation_id: Optional[str] = Query(default=None)
 ):
-    db_robot = crud.get_robot_by_robot_id(db, robot_id=robot_id)
-    if db_robot is None:
-        raise HTTPException(status_code=404, detail="Robot not found")
+    """
+    获取指定用户的聊天记录
     
-    # 权限检查
-    if db_robot.creator_id != current_user.id:
-         raise HTTPException(status_code=403, detail="Not authorized to access this robot")
-         
-    return db_robot
+    - 支持分页（limit, offset）
+    - 支持按对话 ID 过滤
+    - 最多返回 100 条（可通过 limit 参数调整，最大 500）
+    """
+    chat_service = get_chat_history_service()
+    history = await chat_service.get_history(
+        user_id=user_id,
+        limit=limit,
+        offset=offset,
+        conversation_id=conversation_id
+    )
+    
+    return {
+        "user_id": user_id,
+        "total": len(history),
+        "limit": limit,
+        "offset": offset,
+        "messages": history
+    }
 
-@router.put("/robots/{robot_id}", response_model=schemas.Robot, summary="更新机器人信息")
-def update_robot(
-    robot_id: str, 
-    robot: schemas.RobotUpdate, 
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)
-):
-    db_robot = crud.update_robot(db, robot_id=robot_id, robot_update=robot, user_id=current_user.id)
-    if db_robot is None:
-        # 可能是没找到，也可能是权限不足，crud 返回 None
-        # 这里为了区分，可以先查一下
-        existing = crud.get_robot_by_robot_id(db, robot_id=robot_id)
-        if existing and existing.creator_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Not authorized to update this robot")
-        raise HTTPException(status_code=404, detail="Robot not found")
-    return db_robot
+@router.delete("/chat/history/{user_id}", summary="清空用户聊天记录")
+async def clear_chat_history(user_id: str):
+    """
+    清空指定用户的聊天记录
+    """
+    chat_service = get_chat_history_service()
+    await chat_service.clear_history(user_id=user_id)
+    
+    return {
+        "success": True,
+        "message": f"用户 {user_id} 的聊天记录已清空"
+    }
 
-@router.delete("/robots/{robot_id}", summary="删除机器人")
-def delete_robot(
-    robot_id: str, 
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)
-):
-    success = crud.delete_robot(db, robot_id=robot_id, user_id=current_user.id)
-    if not success:
-        existing = crud.get_robot_by_robot_id(db, robot_id=robot_id)
-        if existing and existing.creator_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Not authorized to delete this robot")
-        raise HTTPException(status_code=404, detail="Robot not found")
-    return {"ok": True}
+# --- WebSocket Endpoint ---
+ws_server = ManServerServer()
 
-# --- Conversation Endpoints (Protected) ---
-
-@router.post("/conversations/", response_model=schemas.Conversation, summary="创建对话")
-def create_conversation(
-    conversation: schemas.ConversationCreate, 
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)
-):
-    # 校验机器人是否存在
-    robot = crud.get_robot_by_robot_id(db, robot_id=conversation.robot_id)
-    if not robot:
-        raise HTTPException(status_code=404, detail="Robot not found")
-        
-    return crud.create_conversation(db, conversation, user_id=current_user.id)
-
-@router.get("/conversations/", response_model=List[schemas.Conversation], summary="获取对话列表")
-def read_conversations(
-    robot_id: str = None,
-    skip: int = 0, 
-    limit: int = 100, 
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)
-):
-    return crud.get_conversations(db, user_id=current_user.id, robot_id=robot_id, skip=skip, limit=limit)
-
-@router.get("/conversations/{conversation_id}", response_model=schemas.Conversation, summary="获取单个对话")
-def read_conversation(
-    conversation_id: str, 
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)
-):
-    conversation = crud.get_conversation(db, conversation_id)
-    if not conversation:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-        
-    if conversation.creator_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to access this conversation")
-        
-    return conversation
-
-@router.put("/conversations/{conversation_id}", response_model=schemas.Conversation, summary="更新对话信息")
-def update_conversation(
-    conversation_id: str, 
-    conversation: schemas.ConversationUpdate, 
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)
-):
-    db_conversation = crud.update_conversation(db, conversation_id, conversation, user_id=current_user.id)
-    if not db_conversation:
-        existing = crud.get_conversation(db, conversation_id)
-        if existing and existing.creator_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Not authorized to update this conversation")
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    return db_conversation
-
-@router.delete("/conversations/{conversation_id}", summary="删除对话")
-def delete_conversation(
-    conversation_id: str, 
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)
-):
-    success = crud.delete_conversation(db, conversation_id, user_id=current_user.id)
-    if not success:
-        existing = crud.get_conversation(db, conversation_id)
-        if existing and existing.creator_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Not authorized to delete this conversation")
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    return {"ok": True}
+@router.websocket("/v1/stream")
+async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket 端点，与 API 共用同一端口"""
+    await websocket.accept()
+    await ws_server.handler(websocket)
 
 app.include_router(router, prefix="/ocms")

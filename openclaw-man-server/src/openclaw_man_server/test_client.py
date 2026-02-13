@@ -32,7 +32,7 @@ async def client():
     
     # 2. 构建 WebSocket URL
     # 注意: 参数 token 和 robotId, 还有 conversationId
-    uri = f"ws://127.0.0.1:8812/ocms/v1/stream?token={token}&robotId={robot_id}&conversationId={conversation_id}"
+    uri = f"ws://127.0.0.1:8811/ocms/v1/stream?token={token}&robotId={robot_id}&conversationId={conversation_id}"
     
     print(f"--- 用户测试客户端 ---")
     print(f"用户 ID: {user_id}")

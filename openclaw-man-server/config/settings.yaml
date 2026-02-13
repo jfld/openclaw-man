@@ -3,6 +3,27 @@ app:
   device_id: "python-bridge-001"
   reconnect_interval: 5
 
+chat_history:
+  directory: "./chat_history"  # 聊天记录保存目录（相对于项目根目录）
+  max_records: 100  # 最大保留记录数
+
+upload:
+  enabled: true
+  directory: "D:\\新建文件夹"
+  max_file_size: 10485760  # 10MB in bytes
+  allowed_extensions:
+    - ".jpg"
+    - ".jpeg"
+    - ".png"
+    - ".gif"
+    - ".pdf"
+    - ".doc"
+    - ".docx"
+    - ".pptx"
+    - ".txt"
+    - ".mp4"
+    - ".mov"
+
 logging:
   version: 1
   disable_existing_loggers: false

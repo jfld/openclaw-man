@@ -9,7 +9,6 @@ load_dotenv()
 import uvicorn
 from .config import get_config
 from .logger import setup_logging, get_logger
-from .ws_server.bridge import ManServerServer
 from .api_server.api import app as api_app
 
 def main():
@@ -27,23 +26,19 @@ def main():
     
     logger.info("正在启动 ManServer 服务...")
     
-    # 初始化 WebSocket 服务器
-    ws_server = ManServerServer()
+    # API 端口（同时处理 HTTP API 和 WebSocket）
+    api_port = int(os.getenv("API_PORT", "8811"))
     
     # 准备 API 服务器配置
-    # API 默认运行在 8811 端口，可通过环境变量 API_PORT 修改
-    api_port = int(os.getenv("API_PORT", "8811"))
     api_config = uvicorn.Config(api_app, host="0.0.0.0", port=api_port, log_level="info")
     api_server = uvicorn.Server(api_config)
 
     async def run_services():
-        # 同时运行 WS Server 和 API Server
-        logger.info(f"正在启动 API Server (端口 {api_port}) 和 WebSocket Server (端口 {ws_server.port})...")
+        logger.info(f"正在启动服务 (端口 {api_port})...")
+        logger.info(f"API 文档: http://127.0.0.1:{api_port}/ocms/docs")
+        logger.info(f"WebSocket: ws://127.0.0.1:{api_port}/ocms/v1/stream")
         try:
-            await asyncio.gather(
-                ws_server.start(),
-                api_server.serve()
-            )
+            await api_server.serve()
         except asyncio.CancelledError:
             logger.info("服务任务已取消")
 
