@@ -145,14 +145,14 @@ class ManServerServer:
         conversation_id = params.get("conversationId", [None])[0]
 
         if api_key:#机器人连接
-            robot_id = "robot_id_123"#self.validate_api_key(api_key)
+            robot_id = api_key #self.validate_api_key(api_key)
             if robot_id:
                 await self.handle_openclaw_connection(websocket, robot_id)
             else:
                 logger.warning("连接被拒绝: API Key 无效")
                 await websocket.close(1008, "无效的 API Key")
         elif token:#用户连接
-            user_id = "user_id_123"#self.verify_token(token)
+            user_id = token #self.verify_token(token)
             if user_id:
                 if not target_robot_id:
                     logger.warning("连接被拒绝: 用户未指定 robotId")

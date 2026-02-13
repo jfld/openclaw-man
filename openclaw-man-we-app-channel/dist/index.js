@@ -7,6 +7,16 @@ const ws_1 = __importDefault(require("ws"));
 // 连接的全局状态
 const connections = new Map();
 const messageQueues = new Map();
+// 重连相关状态
+let reconnectTimer = null;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 10;
+const BASE_RECONNECT_DELAY = 1000; // 1秒
+const MAX_RECONNECT_DELAY = 30000; // 30秒
+// 保存当前配置供重连使用
+let currentConfig = null;
+let currentLogger = null;
+let currentCtx = null;
 // 全局运行时引用
 let core;
 // 防御性解析的辅助函数
@@ -79,6 +89,10 @@ const channelPlugin = {
                     error: console.error,
                     debug: console.debug
                 };
+            // 保存配置和上下文供重连使用
+            currentConfig = config;
+            currentLogger = logger;
+            currentCtx = ctx;
             if (!core) {
                 logger.error("[WE XCX] 插件运行时未初始化。Register 函数未被调用？");
             }
@@ -91,6 +105,12 @@ const channelPlugin = {
             const endpoint = (config.apiEndpoint || "").replace(/^https?:\/\//, '').replace(/^wss?:\/\//, '');
             const wsUrl = `${protocol}://${endpoint}/v1/stream?apiKey=${config.apiKey}`;
             logger.info(`[WE XCX] 正在连接到 ${wsUrl}...`);
+            // 清除之前的重连计时器
+            if (reconnectTimer) {
+                clearTimeout(reconnectTimer);
+                reconnectTimer = null;
+            }
+            reconnectAttempts = 0;
             // 如果存在则关闭现有连接
             if (connections.has("default")) {
                 connections.get("default")?.terminate();
@@ -102,6 +122,7 @@ const channelPlugin = {
             }
             ws.on("open", () => {
                 logger.info("[WE XCX] 已连接！");
+                reconnectAttempts = 0; // 重置重连计数
                 // 发送排队的消息
                 const queue = messageQueues.get("default") || [];
                 while (queue.length > 0) {
@@ -216,10 +237,39 @@ const channelPlugin = {
             ws.on("close", () => {
                 logger.info("[WE XCX] 已断开连接");
                 connections.delete("default");
+                // 触发重连
+                attemptReconnect(ctx, config, logger);
             });
         }
     }
 };
+// 重连函数
+function attemptReconnect(ctx, config, logger) {
+    if (!currentLogger)
+        currentLogger = logger;
+    if (!currentConfig)
+        currentConfig = config;
+    if (!currentCtx)
+        currentCtx = ctx;
+    const log = currentLogger || logger;
+    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+        log.error(`[WE XCX] 达到最大重连次数 (${MAX_RECONNECT_ATTEMPTS})，停止重连`);
+        return;
+    }
+    // 计算延迟（指数退避）
+    const delay = Math.min(BASE_RECONNECT_DELAY * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY);
+    reconnectAttempts++;
+    log.info(`[WE XCX] ${delay / 1000}秒后尝试重连 (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+    reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        if (currentCtx && currentConfig && currentLogger) {
+            const gateway = channelPlugin.gateway;
+            if (gateway) {
+                gateway.startAccount(currentCtx);
+            }
+        }
+    }, delay);
+}
 const plugin = {
     id: "we-xcx",
     name: "WE XCX",
