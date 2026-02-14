@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, status, APIRouter, UploadFile, File, Query, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import inspect, text
 from typing import List, Optional
@@ -136,6 +137,44 @@ async def upload_file(
         file_size=len(content),
         content_type=file.content_type or "application/octet-stream",
         message="文件上传成功"
+    )
+
+@router.get("/download/file", summary="下载文件")
+async def download_file(
+    file_path: str = Query(..., description="文件的绝对路径")
+):
+    """
+    根据文件的绝对路径下载文件
+    
+    - 使用文件的绝对路径作为文件的唯一标识
+    - 返回文件内容
+    """
+    file_path_obj = Path(file_path)
+    
+    if not file_path_obj.is_absolute():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="必须提供文件的绝对路径"
+        )
+    
+    if not file_path_obj.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"文件不存在: {file_path}"
+        )
+    
+    if not file_path_obj.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"路径不是文件: {file_path}"
+        )
+    
+    filename = file_path_obj.name
+    
+    return FileResponse(
+        path=str(file_path_obj),
+        filename=filename,
+        media_type="application/octet-stream"
     )
 
 # --- Chat History Endpoints ---
