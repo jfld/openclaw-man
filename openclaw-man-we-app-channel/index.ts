@@ -1,11 +1,13 @@
 import { OpenClawPluginApi, ChannelPlugin, PluginRuntime } from "openclaw/plugin-sdk";
 import WebSocket from "ws";
+import axios from "axios";
 
 // 定义符合 OpenClaw 运行时预期的最小类型
 interface WeXcxConfig {
   apiKey: string;
   apiEndpoint: string;
   useTls: boolean;
+  serverUrl: string;
 }
 
 // 连接的全局状态
@@ -42,6 +44,64 @@ function readString(record: Record<string, unknown> | null, key: string): string
   return typeof value === "string" ? value : undefined;
 }
 
+interface MediaFile {
+  path: string;
+  mimeType: string;
+  originalName: string;
+}
+
+async function downloadMedia(
+  serverUrl: string,
+  filePath: string,
+  workspacePath: string,
+  log?: any
+): Promise<MediaFile | null> {
+  if (!serverUrl || !filePath) {
+    log?.error?.('[WE XCX] downloadMedia requires serverUrl and filePath to be provided.');
+    return null;
+  }
+
+  try {
+    const normalizedServerUrl = serverUrl.replace(/\/$/, '');
+    const downloadUrl = `${normalizedServerUrl}/download/file?file_path=${encodeURIComponent(filePath)}`;
+    
+    log?.debug?.(`[WE XCX] Downloading media from: ${downloadUrl}`);
+    
+    const response = await axios.get(downloadUrl, { responseType: 'arraybuffer' });
+    const contentType = response.headers['content-type'] || 'application/octet-stream';
+    const buffer = Buffer.from(response.data);
+
+    const path = await import('path');
+    const fs = await import('fs');
+    
+    const mediaDir = path.join("/home/user3", 'media', 'inbound');
+    fs.mkdirSync(mediaDir, { recursive: true });
+
+    const contentDisposition = response.headers['content-disposition'] || '';
+    const originalNameMatch = contentDisposition.match(/filename[^;=\n]*=(?:(\\?['"])(.*?)\1|([^;=\n]*))/i);
+    const originalName = originalNameMatch ? originalNameMatch[2] || originalNameMatch[3] : '';
+    
+    let filename: string;
+    if (originalName) {
+      filename = `${Date.now()}_${originalName}`;
+    } else {
+      const ext = contentType.split('/')[1]?.split(';')[0] || 'bin';
+      filename = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    }
+    currentLogger.debug(`文件名: ${filename}`);
+    const mediaPath = path.join(mediaDir, filename);
+    currentLogger.debug(`文件路径: ${mediaPath}`); 
+    fs.writeFileSync(mediaPath, buffer);
+    log?.debug?.(`[WE XCX] Media saved to workspace: ${mediaPath}`);
+    return { path: mediaPath, mimeType: contentType, originalName };
+  } catch (err: any) {
+    if (log?.error) {
+      log.error(`[WE XCX] Failed to download media: ${err.message}`);
+    }
+    return null;
+  }
+}
+
 const channelPlugin: ChannelPlugin<any> = {
   id: "we-xcx",
   meta: {
@@ -49,7 +109,7 @@ const channelPlugin: ChannelPlugin<any> = {
   } as any,
   capabilities: {
     chatTypes: ["direct"],
-    media: false,
+    media: true,
     reactions: false,
     threads: false,
   },
@@ -58,12 +118,14 @@ const channelPlugin: ChannelPlugin<any> = {
     schema: {
       apiKey: { type: "string", description: "API Key", sensitive: true },
       apiEndpoint: { type: "string", description: "API Endpoint", default: "localhost:8080" },
-      useTls: { type: "boolean", description: "Use TLS/SSL", default: false }
+      useTls: { type: "boolean", description: "Use TLS/SSL", default: false },
+      serverUrl: { type: "string", description: "Server URL for file download", default: "http://localhost:8080" }
     },
     uiHints: {
       apiKey: { label: "API Key" },
       apiEndpoint: { label: "API Endpoint" },
-      useTls: { label: "Use TLS" }
+      useTls: { label: "Use TLS" },
+      serverUrl: { label: "Server URL" }
     }
   },
   
@@ -106,6 +168,9 @@ const channelPlugin: ChannelPlugin<any> = {
       currentConfig = config;
       currentLogger = logger;
       currentCtx = ctx;
+
+      // 调试日志：输出完整配置
+      logger.debug(`[WE XCX] 完整配置: ${JSON.stringify(config)}`);
 
       if (!core) {
         logger.error("[WE XCX] 插件运行时未初始化。Register 函数未被调用？");
@@ -175,10 +240,12 @@ const channelPlugin: ChannelPlugin<any> = {
           if (type === "message" && msgData) {
             const text = readString(msgData, "text") || "";
             const userId = readString(msgData, "userId") || "unknown";
-            const conversationId = readString(msgData, "conversationId") || "default"; // 获取 conversationId
+            const conversationId = readString(msgData, "conversationId") || "default";
             const msgId = readString(msgData, "id") || `we-xcx-${Date.now()}`;
+            const filePath = readString(msgData, "filePath");
+            const mediaType = readString(msgData, "mediaType");
             
-            if (text && core) {
+            if ((text || filePath) && core) {
                 // 使用核心运行时分发消息
                 const cfg = core.config.loadConfig();
                 
@@ -191,9 +258,31 @@ const channelPlugin: ChannelPlugin<any> = {
                 
                 logger.info(`[WE XCX] 解析路由: agentId=${route.agentId}, sessionKey=${route.sessionKey}`);
 
+                // 获取工作空间路径用于保存下载的媒体文件
+                const workspacePath = core.channel.session.resolveStorePath(cfg.session?.store, { agentId: route.agentId });
+                
+                // 调试日志：检查当前配置
+                logger.debug(`[WE XCX] 当前配置 (from currentConfig): ${JSON.stringify(currentConfig)}`);
+                const serverUrl = (currentConfig?.serverUrl || config?.serverUrl) || "http://localhost:8080";
+                logger.debug(`[WE XCX] 使用的 serverUrl: ${serverUrl}`);
+
+                // 下载媒体文件（如果有）
+                let downloadedMediaPath: string | undefined;
+                let downloadedMediaMimeType: string | undefined;
+                let originalMediaName: string | undefined;
+                if (filePath && mediaType) {
+                    const media = await downloadMedia(serverUrl, filePath, workspacePath, logger);
+                    if (media) {
+                        downloadedMediaPath = media.path;
+                        downloadedMediaMimeType = media.mimeType;
+                        originalMediaName = media.originalName;
+                        logger.info(`[WE XCX] Media downloaded: ${downloadedMediaPath}`);
+                    }
+                }
+
                 // 构建上下文
                 const ctxPayload = core.channel.reply.finalizeInboundContext({
-                    Body: text,
+                    Body: text || (originalMediaName ? `<media:${mediaType || 'file'}:${originalMediaName}>` : `<media:${mediaType || 'file'}>`),
                     RawBody: text,
                     CommandBody: text,
                     From: `we-xcx:${userId}`,
@@ -201,16 +290,19 @@ const channelPlugin: ChannelPlugin<any> = {
                     SessionKey: route.sessionKey,
                     AccountId: "default",
                     ChatType: "direct",
-                    ConversationLabel: conversationId, // 使用 conversationId 作为会话标签
+                    ConversationLabel: conversationId,
                     SenderName: userId,
                     SenderId: userId,
                     Provider: "we-xcx" as const,
                     Surface: "we-xcx" as const,
                     MessageSid: msgId,
                     Timestamp: Date.now(),
-                    CommandSource: "text" as const,
+                    CommandSource: text ? "text" : "file",
                     OriginatingChannel: "we-xcx" as const,
-                    OriginatingTo: "we-xcx:bot"
+                    OriginatingTo: "we-xcx:bot",
+                    MediaPath: downloadedMediaPath,
+                    MediaType: mediaType,
+                    MediaUrl: downloadedMediaPath
                 });
 
                 // 创建分发器
@@ -248,7 +340,7 @@ const channelPlugin: ChannelPlugin<any> = {
                     dispatcher
                 });
 
-            } else if (!text) {
+            } else if (!text && !filePath) {
               logger.warn("[WE XCX] 收到没有文本内容的消息");
             } else if (!core) {
                 logger.error("[WE XCX] 核心运行时不可用，无法处理消息");

@@ -257,17 +257,21 @@ class ManServerServer:
                 robot_ws = self.robot_connections.get(robot_id)
                 if robot_ws:
                     # 解析用户消息
-                    # 期望格式: JSON {"text": "...", "conversationId": "..."}
+                    # 期望格式: JSON {"text": "...", "conversationId": "...", "filePath": "...", "mediaType": "..."}
                     # 如果不是 JSON，则作为纯文本
                     if msg_obj:
                         text = msg_obj.get("text")
+                        file_path = msg_obj.get("filePath")
+                        media_type = msg_obj.get("mediaType")
                         # 优先级: 消息体中的 conversationId > URL 参数中的 conversationId > "default"
                         conversation_id = msg_obj.get("conversationId") or url_conversation_id or "default"
                     else:
                         text = message
+                        file_path = None
+                        media_type = None
                         conversation_id = url_conversation_id or "default"
 
-                    if not text:
+                    if not text and not file_path:
                         continue
 
                     payload = {
@@ -279,6 +283,13 @@ class ManServerServer:
                             "id": f"msg_{asyncio.get_event_loop().time()}"
                         }
                     }
+                    
+                    # 添加文件信息（如果有）
+                    if file_path:
+                        payload["data"]["filePath"] = file_path
+                    if media_type:
+                        payload["data"]["mediaType"] = media_type
+                    
                     await self.ws_send(robot_ws, json.dumps(payload))
                     logger.info(f"[Server -> Robot {robot_id}] 已转发来自 {user_id} 的消息")
                     
