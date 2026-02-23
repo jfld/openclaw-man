@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket 测试页面</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .panel {
+            flex: 1;
+            min-width: 350px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .panel h2 {
+            margin-top: 0;
+            color: #444;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status.connecting {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .messages {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            background: #fafafa;
+        }
+        .message {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            word-break: break-all;
+        }
+        .message.sent {
+            background: #cce5ff;
+            border-left: 3px solid #007bff;
+        }
+        .message.received {
+            background: #d4edda;
+            border-left: 3px solid #28a745;
+        }
+        .message.error {
+            background: #f8d7da;
+            border-left: 3px solid #dc3545;
+        }
+        .message.system {
+            background: #e2e3e5;
+            border-left: 3px solid #6c757d;
+            font-style: italic;
+        }
+        .message-time {
+            font-size: 11px;
+            color: #888;
+        }
+        .json-view {
+            background: #f4f4f4;
+            padding: 8px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .clear-btn {
+            margin-top: 10px;
+        }
+        .connection-type {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .connection-type label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .connection-type input {
+            width: auto;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket 测试工具</h1>
+    
+    <div class="container">
+        <div class="panel">
+            <h2>连接配置</h2>
+            
+            <div class="form-group">
+                <label>连接类型</label>
+                <div class="connection-type">
+                    <label><input type="radio" name="connType" value="robot" checked> 机器人 (API Key)</label>
+                    <label><input type="radio" name="connType" value="user"> 用户 (Token)</label>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="serverUrl">服务器地址</label>
+                <input type="text" id="serverUrl" value="ws://127.0.0.1:8812" placeholder="ws://127.0.0.1:8812">
+            </div>
+            
+            <div class="form-group" id="apiKeyGroup">
+                <label for="apiKey">API Key</label>
+                <input type="text" id="apiKey" value="api_key_123" placeholder="输入机器人的 API Key">
+            </div>
+            
+            <div class="form-group" id="tokenGroup" style="display:none;">
+                <label for="token">用户 Token</label>
+                <input type="text" id="token" placeholder="输入用户 Token">
+            </div>
+            
+            <div class="form-group" id="robotIdGroup" style="display:none;">
+                <label for="robotId">目标机器人 ID</label>
+                <input type="text" id="robotId" placeholder="输入机器人 ID">
+            </div>
+            
+            <div class="form-group" id="conversationIdGroup" style="display:none;">
+                <label for="conversationId">会话 ID (可选)</label>
+                <input type="text" id="conversationId" placeholder="会话 ID">
+            </div>
+            
+            <div class="form-group">
+                <button id="connectBtn" class="btn-primary">连接</button>
+                <button id="disconnectBtn" class="btn-danger" disabled>断开</button>
+            </div>
+            
+            <div id="status" class="status disconnected">未连接</div>
+        </div>
+        
+        <div class="panel">
+            <h2>消息</h2>
+            
+            <div class="form-group" id="messageTypeGroup">
+                <label for="messageType">消息类型</label>
+                <select id="messageType">
+                    <option value="message">message</option>
+                    <option value="ping">ping</option>
+                    <option value="auth">auth</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="messageText">消息内容</label>
+                <textarea id="messageText" rows="3" placeholder="输入消息内容"></textarea>
+            </div>
+            
+            <div class="form-group" id="recipientGroup" style="display:none;">
+                <label for="recipientId">接收者 ID</label>
+                <input type="text" id="recipientId" placeholder="接收者用户 ID">
+            </div>
+            
+            <div class="form-group">
+                <button id="sendBtn" class="btn-success" disabled>发送</button>
+                <button id="sendJsonBtn" class="btn-secondary" disabled>发送 JSON</button>
+            </div>
+            
+            <div class="messages" id="messages"></div>
+            
+            <button id="clearBtn" class="btn-secondary clear-btn">清空消息</button>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        const messagesDiv = document.getElementById('messages');
+        const statusDiv = document.getElementById('status');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const sendBtn = document.getElementById('sendBtn');
+        const sendJsonBtn = document.getElementById('sendJsonBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        
+        const serverUrlInput = document.getElementById('serverUrl');
+        const apiKeyInput = document.getElementById('apiKey');
+        const tokenInput = document.getElementById('token');
+        const robotIdInput = document.getElementById('robotId');
+        const conversationIdInput = document.getElementById('conversationId');
+        const messageText = document.getElementById('messageText');
+        const recipientId = document.getElementById('recipientId');
+        const messageType = document.getElementById('messageType');
+        
+        const connTypeRadios = document.getElementsByName('connType');
+        
+        function updateConnectionType() {
+            let connType = 'robot';
+            for (const radio of connTypeRadios) {
+                if (radio.checked) {
+                    connType = radio.value;
+                    break;
+                }
+            }
+            
+            document.getElementById('apiKeyGroup').style.display = connType === 'robot' ? 'block' : 'none';
+            document.getElementById('tokenGroup').style.display = connType === 'user' ? 'block' : 'none';
+            document.getElementById('robotIdGroup').style.display = connType === 'user' ? 'block' : 'none';
+            document.getElementById('conversationIdGroup').style.display = connType === 'user' ? 'block' : 'none';
+            document.getElementById('recipientGroup').style.display = connType === 'robot' ? 'block' : 'none';
+        }
+        
+        for (const radio of connTypeRadios) {
+            radio.addEventListener('change', updateConnectionType);
+        }
+        
+        function addMessage(data, type = 'system') {
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+            
+            const time = new Date().toLocaleTimeString();
+            let content = `<span class="message-time">[${time}]</span> `;
+            
+            if (typeof data === 'object') {
+                content += `<div class="json-view">${JSON.stringify(data, null, 2)}</div>`;
+            } else {
+                content += data;
+            }
+            
+            div.innerHTML = content;
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function updateStatus(status, text) {
+            statusDiv.className = `status ${status}`;
+            statusDiv.textContent = text;
+        }
+        
+        function buildUrl() {
+            let connType = 'robot';
+            for (const radio of connTypeRadios) {
+                if (radio.checked) {
+                    connType = radio.value;
+                    break;
+                }
+            }
+            
+            const serverUrl = serverUrlInput.value.replace(/\/$/, '');
+            let url = `${serverUrl}/ocms/v1/stream?`;
+            
+            if (connType === 'robot') {
+                const apiKey = apiKeyInput.value;
+                if (!apiKey) {
+                    alert('请输入 API Key');
+                    return null;
+                }
+                url += `apiKey=${encodeURIComponent(apiKey)}`;
+            } else {
+                const token = tokenInput.value;
+                const robotId = robotIdInput.value;
+                
+                if (!token) {
+                    alert('请输入 Token');
+                    return null;
+                }
+                if (!robotId) {
+                    alert('请输入目标机器人 ID');
+                    return null;
+                }
+                
+                url += `token=${encodeURIComponent(token)}&robotId=${encodeURIComponent(robotId)}`;
+                
+                const convId = conversationIdInput.value;
+                if (convId) {
+                    url += `&conversationId=${encodeURIComponent(convId)}`;
+                }
+            }
+            
+            return url;
+        }
+        
+        connectBtn.addEventListener('click', () => {
+            const url = buildUrl();
+            if (!url) return;
+            
+            try {
+                updateStatus('connecting', '连接中...');
+                ws = new WebSocket(url);
+                
+                ws.onopen = () => {
+                    updateStatus('connected', '已连接');
+                    connectBtn.disabled = true;
+                    disconnectBtn.disabled = false;
+                    sendBtn.disabled = false;
+                    sendJsonBtn.disabled = false;
+                    addMessage('WebSocket 连接已建立', 'system');
+                };
+                
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        addMessage(data, 'received');
+                    } catch {
+                        addMessage(event.data, 'received');
+                    }
+                };
+                
+                ws.onerror = (error) => {
+                    addMessage(`错误: ${error}`, 'error');
+                };
+                
+                ws.onclose = (event) => {
+                    updateStatus('disconnected', `已断开 (Code: ${event.code})`);
+                    connectBtn.disabled = false;
+                    disconnectBtn.disabled = true;
+                    sendBtn.disabled = true;
+                    sendJsonBtn.disabled = true;
+                    addMessage(`连接已关闭 (Code: ${event.code}, Reason: ${event.reason || '无'})`, 'system');
+                    ws = null;
+                };
+                
+            } catch (e) {
+                updateStatus('disconnected', '连接失败');
+                addMessage(`连接失败: ${e.message}`, 'error');
+            }
+        });
+        
+        disconnectBtn.addEventListener('click', () => {
+            if (ws) {
+                ws.close();
+            }
+        });
+        
+        sendBtn.addEventListener('click', () => {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('未连接服务器');
+                return;
+            }
+            
+            const text = messageText.value;
+            if (!text) {
+                alert('请输入消息内容');
+                return;
+            }
+            
+            let connType = 'robot';
+            for (const radio of connTypeRadios) {
+                if (radio.checked) {
+                    connType = radio.value;
+                    break;
+                }
+            }
+            
+            let msg = {
+                type: messageType.value,
+                data: {
+                    text: text
+                }
+            };
+            
+            if (connType === 'robot') {
+                const recId = recipientId.value;
+                if (recId) {
+                    msg.data.recipientId = recId;
+                }
+            }
+            
+            const msgStr = JSON.stringify(msg);
+            ws.send(msgStr);
+            addMessage(msg, 'sent');
+            messageText.value = '';
+        });
+        
+        sendJsonBtn.addEventListener('click', () => {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('未连接服务器');
+                return;
+            }
+            
+            const text = messageText.value;
+            if (!text) {
+                alert('请输入 JSON 消息内容');
+                return;
+            }
+            
+            try {
+                const json = JSON.parse(text);
+                const msgStr = JSON.stringify(json);
+                ws.send(msgStr);
+                addMessage(json, 'sent');
+                messageText.value = '';
+            } catch (e) {
+                alert('无效的 JSON 格式');
+            }
+        });
+        
+        clearBtn.addEventListener('click', () => {
+            messagesDiv.innerHTML = '';
+        });
+        
+        messageType.addEventListener('change', () => {
+            const msgType = messageType.value;
+            document.getElementById('messageTypeGroup').querySelector('label').textContent = 
+                msgType === 'message' ? '消息类型' : 
+                msgType === 'ping' ? '消息类型 (ping)' : '消息类型';
+        });
+    </script>
+</body>
+</html>
