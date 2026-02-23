@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebSocket 测试页面</title>
+    <title>WebSocket 测试工具</title>
     <style>
         * {
             box-sizing: border-box;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             padding: 20px;
             background: #f5f5f5;
@@ -18,6 +18,31 @@
         h1 {
             text-align: center;
             color: #333;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 10px;
+        }
+        .tab-btn {
+            padding: 10px 20px;
+            border: none;
+            background: #e0e0e0;
+            cursor: pointer;
+            border-radius: 4px 4px 0 0;
+            font-size: 14px;
+        }
+        .tab-btn.active {
+            background: #007bff;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
         }
         .container {
             display: flex;
@@ -164,104 +189,244 @@
         .clear-btn {
             margin-top: 10px;
         }
-        .connection-type {
-            display: flex;
-            gap: 15px;
+        .api-url {
+            font-family: monospace;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
             margin-bottom: 15px;
+            word-break: break-all;
         }
-        .connection-type label {
-            display: flex;
-            align-items: center;
+        .response {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .response pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .file-drop-zone {
+            border: 2px dashed #ccc;
+            padding: 30px;
+            text-align: center;
+            border-radius: 8px;
             cursor: pointer;
+            transition: all 0.3s;
         }
-        .connection-type input {
-            width: auto;
-            margin-right: 5px;
+        .file-drop-zone:hover {
+            border-color: #007bff;
+            background: #f0f7ff;
+        }
+        .file-drop-zone.dragover {
+            border-color: #007bff;
+            background: #e7f1ff;
+        }
+        .upload-result {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .upload-result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+        .upload-result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+        .history-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .history-item:last-child {
+            border-bottom: none;
+        }
+        .history-item .sender {
+            font-weight: bold;
+            color: #007bff;
+        }
+        .history-item .sender.robot {
+            color: #28a745;
+        }
+        .history-item .time {
+            font-size: 11px;
+            color: #888;
+        }
+        .history-item .text {
+            margin-top: 5px;
         }
     </style>
 </head>
 <body>
     <h1>WebSocket 测试工具</h1>
     
-    <div class="container">
-        <div class="panel">
-            <h2>连接配置</h2>
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="websocket">WebSocket</button>
+        <button class="tab-btn" data-tab="history">聊天记录</button>
+        <button class="tab-btn" data-tab="upload">文件上传</button>
+    </div>
+    
+    <div id="tab-websocket" class="tab-content active">
+        <div class="container">
+            <div class="panel">
+                <h2>连接配置</h2>
+                
+                <div class="form-group">
+                    <label for="serverUrl">服务器地址</label>
+                    <input type="text" id="serverUrl" value="ws://127.0.0.1:8812" placeholder="ws://127.0.0.1:8812">
+                </div>
+                
+                <div class="form-group">
+                    <button id="connectBtn" class="btn-primary">连接</button>
+                    <button id="disconnectBtn" class="btn-danger" disabled>断开</button>
+                </div>
+                
+                <div id="status" class="status disconnected">未连接</div>
+            </div>
             
-            <div class="form-group">
-                <label>连接类型</label>
-                <div class="connection-type">
-                    <label><input type="radio" name="connType" value="robot" checked> 机器人 (API Key)</label>
-                    <label><input type="radio" name="connType" value="user"> 用户 (Token)</label>
+            <div class="panel">
+                <h2>消息</h2>
+                
+                <div class="form-group">
+                    <label for="messageType">消息类型</label>
+                    <select id="messageType">
+                        <option value="message">message</option>
+                        <option value="ping">ping</option>
+                        <option value="auth">auth</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="messageText">消息内容</label>
+                    <textarea id="messageText" rows="3" placeholder="输入消息内容"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <button id="sendBtn" class="btn-success" disabled>发送</button>
+                    <button id="sendJsonBtn" class="btn-secondary" disabled>发送 JSON</button>
+                </div>
+                
+                <div class="messages" id="messages"></div>
+                
+                <button id="clearBtn" class="btn-secondary clear-btn">清空消息</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="tab-history" class="tab-content">
+        <div class="container">
+            <div class="panel">
+                <h2>聊天记录查询</h2>
+                
+                <div class="form-group">
+                    <label for="apiServer">API 服务器地址</label>
+                    <input type="text" id="apiServer" value="http://127.0.0.1:8000" placeholder="http://127.0.0.1:8000">
+                </div>
+                
+                <div class="form-group">
+                    <label for="historyUserId">用户 ID</label>
+                    <input type="text" id="historyUserId" placeholder="输入用户 ID">
+                </div>
+                
+                <div class="form-group">
+                    <label for="historyLimit">返回条数 (1-500)</label>
+                    <input type="number" id="historyLimit" value="50" min="1" max="500">
+                </div>
+                
+                <div class="form-group">
+                    <label for="historyOffset">偏移量</label>
+                    <input type="number" id="historyOffset" value="0" min="0">
+                </div>
+                
+                <div class="form-group">
+                    <label for="historyConvId">会话 ID (可选)</label>
+                    <input type="text" id="historyConvId" placeholder="会话 ID">
+                </div>
+                
+                <div class="form-group">
+                    <button id="getHistoryBtn" class="btn-primary">获取聊天记录</button>
+                    <button id="clearHistoryBtn" class="btn-danger">清空聊天记录</button>
+                </div>
+                
+                <div id="historyApiUrl" class="api-url"></div>
+            </div>
+            
+            <div class="panel">
+                <h2>查询结果</h2>
+                <div id="historyResponse" class="response">
+                    <pre>点击"获取聊天记录"按钮查询</pre>
                 </div>
             </div>
-            
-            <div class="form-group">
-                <label for="serverUrl">服务器地址</label>
-                <input type="text" id="serverUrl" value="ws://127.0.0.1:8812" placeholder="ws://127.0.0.1:8812">
-            </div>
-            
-            <div class="form-group" id="apiKeyGroup">
-                <label for="apiKey">API Key</label>
-                <input type="text" id="apiKey" value="api_key_123" placeholder="输入机器人的 API Key">
-            </div>
-            
-            <div class="form-group" id="tokenGroup" style="display:none;">
-                <label for="token">用户 Token</label>
-                <input type="text" id="token" placeholder="输入用户 Token">
-            </div>
-            
-            <div class="form-group" id="robotIdGroup" style="display:none;">
-                <label for="robotId">目标机器人 ID</label>
-                <input type="text" id="robotId" placeholder="输入机器人 ID">
-            </div>
-            
-            <div class="form-group" id="conversationIdGroup" style="display:none;">
-                <label for="conversationId">会话 ID (可选)</label>
-                <input type="text" id="conversationId" placeholder="会话 ID">
-            </div>
-            
-            <div class="form-group">
-                <button id="connectBtn" class="btn-primary">连接</button>
-                <button id="disconnectBtn" class="btn-danger" disabled>断开</button>
-            </div>
-            
-            <div id="status" class="status disconnected">未连接</div>
         </div>
-        
-        <div class="panel">
-            <h2>消息</h2>
-            
-            <div class="form-group" id="messageTypeGroup">
-                <label for="messageType">消息类型</label>
-                <select id="messageType">
-                    <option value="message">message</option>
-                    <option value="ping">ping</option>
-                    <option value="auth">auth</option>
-                </select>
+    </div>
+    
+    <div id="tab-upload" class="tab-content">
+        <div class="container">
+            <div class="panel">
+                <h2>文件上传</h2>
+                
+                <div class="form-group">
+                    <label for="uploadApiServer">API 服务器地址</label>
+                    <input type="text" id="uploadApiServer" value="http://127.0.0.1:8000" placeholder="http://127.0.0.1:8000">
+                </div>
+                
+                <div class="form-group">
+                    <label>选择文件</label>
+                    <div class="file-drop-zone" id="fileDropZone">
+                        <p>点击选择文件或拖拽文件到此处</p>
+                        <p style="font-size: 12px; color: #888;">支持: jpg, jpeg, png, gif, pdf, doc, docx, txt, mp4, mov</p>
+                    </div>
+                    <input type="file" id="fileInput" style="display: none;">
+                    <div id="selectedFile" style="margin-top: 10px;"></div>
+                </div>
+                
+                <div class="form-group">
+                    <button id="uploadBtn" class="btn-success">上传文件</button>
+                </div>
+                
+                <div id="uploadResult" class="upload-result" style="display: none;"></div>
             </div>
             
-            <div class="form-group">
-                <label for="messageText">消息内容</label>
-                <textarea id="messageText" rows="3" placeholder="输入消息内容"></textarea>
+            <div class="panel">
+                <h2>文件下载测试</h2>
+                
+                <div class="form-group">
+                    <label for="downloadApiServer">API 服务器地址</label>
+                    <input type="text" id="downloadApiServer" value="http://127.0.0.1:8000" placeholder="http://127.0.0.1:8000">
+                </div>
+                
+                <div class="form-group">
+                    <label for="downloadPath">文件完整路径</label>
+                    <input type="text" id="downloadPath" placeholder="例如: D:/uploads/test.jpg">
+                </div>
+                
+                <div class="form-group">
+                    <button id="downloadBtn" class="btn-primary">下载文件</button>
+                </div>
+                
+                <div id="downloadResult" class="response" style="margin-top: 15px;">
+                    <pre>点击"下载文件"按钮测试</pre>
+                </div>
             </div>
-            
-            <div class="form-group" id="recipientGroup" style="display:none;">
-                <label for="recipientId">接收者 ID</label>
-                <input type="text" id="recipientId" placeholder="接收者用户 ID">
-            </div>
-            
-            <div class="form-group">
-                <button id="sendBtn" class="btn-success" disabled>发送</button>
-                <button id="sendJsonBtn" class="btn-secondary" disabled>发送 JSON</button>
-            </div>
-            
-            <div class="messages" id="messages"></div>
-            
-            <button id="clearBtn" class="btn-secondary clear-btn">清空消息</button>
         </div>
     </div>
 
     <script>
+        // Tab 切换
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+            });
+        });
+        
+        // ========== WebSocket 功能 ==========
         let ws = null;
         const messagesDiv = document.getElementById('messages');
         const statusDiv = document.getElementById('status');
@@ -272,35 +437,8 @@
         const clearBtn = document.getElementById('clearBtn');
         
         const serverUrlInput = document.getElementById('serverUrl');
-        const apiKeyInput = document.getElementById('apiKey');
-        const tokenInput = document.getElementById('token');
-        const robotIdInput = document.getElementById('robotId');
-        const conversationIdInput = document.getElementById('conversationId');
         const messageText = document.getElementById('messageText');
-        const recipientId = document.getElementById('recipientId');
         const messageType = document.getElementById('messageType');
-        
-        const connTypeRadios = document.getElementsByName('connType');
-        
-        function updateConnectionType() {
-            let connType = 'robot';
-            for (const radio of connTypeRadios) {
-                if (radio.checked) {
-                    connType = radio.value;
-                    break;
-                }
-            }
-            
-            document.getElementById('apiKeyGroup').style.display = connType === 'robot' ? 'block' : 'none';
-            document.getElementById('tokenGroup').style.display = connType === 'user' ? 'block' : 'none';
-            document.getElementById('robotIdGroup').style.display = connType === 'user' ? 'block' : 'none';
-            document.getElementById('conversationIdGroup').style.display = connType === 'user' ? 'block' : 'none';
-            document.getElementById('recipientGroup').style.display = connType === 'robot' ? 'block' : 'none';
-        }
-        
-        for (const radio of connTypeRadios) {
-            radio.addEventListener('change', updateConnectionType);
-        }
         
         function addMessage(data, type = 'system') {
             const div = document.createElement('div');
@@ -326,46 +464,8 @@
         }
         
         function buildUrl() {
-            let connType = 'robot';
-            for (const radio of connTypeRadios) {
-                if (radio.checked) {
-                    connType = radio.value;
-                    break;
-                }
-            }
-            
             const serverUrl = serverUrlInput.value.replace(/\/$/, '');
-            let url = `${serverUrl}/ocms/v1/stream?`;
-            
-            if (connType === 'robot') {
-                const apiKey = apiKeyInput.value;
-                if (!apiKey) {
-                    alert('请输入 API Key');
-                    return null;
-                }
-                url += `apiKey=${encodeURIComponent(apiKey)}`;
-            } else {
-                const token = tokenInput.value;
-                const robotId = robotIdInput.value;
-                
-                if (!token) {
-                    alert('请输入 Token');
-                    return null;
-                }
-                if (!robotId) {
-                    alert('请输入目标机器人 ID');
-                    return null;
-                }
-                
-                url += `token=${encodeURIComponent(token)}&robotId=${encodeURIComponent(robotId)}`;
-                
-                const convId = conversationIdInput.value;
-                if (convId) {
-                    url += `&conversationId=${encodeURIComponent(convId)}`;
-                }
-            }
-            
-            return url;
+            return `${serverUrl}`;
         }
         
         connectBtn.addEventListener('click', () => {
@@ -432,27 +532,12 @@
                 return;
             }
             
-            let connType = 'robot';
-            for (const radio of connTypeRadios) {
-                if (radio.checked) {
-                    connType = radio.value;
-                    break;
-                }
-            }
-            
-            let msg = {
+            const msg = {
                 type: messageType.value,
                 data: {
                     text: text
                 }
             };
-            
-            if (connType === 'robot') {
-                const recId = recipientId.value;
-                if (recId) {
-                    msg.data.recipientId = recId;
-                }
-            }
             
             const msgStr = JSON.stringify(msg);
             ws.send(msgStr);
@@ -487,11 +572,190 @@
             messagesDiv.innerHTML = '';
         });
         
-        messageType.addEventListener('change', () => {
-            const msgType = messageType.value;
-            document.getElementById('messageTypeGroup').querySelector('label').textContent = 
-                msgType === 'message' ? '消息类型' : 
-                msgType === 'ping' ? '消息类型 (ping)' : '消息类型';
+        // ========== 聊天记录功能 ==========
+        const getHistoryBtn = document.getElementById('getHistoryBtn');
+        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+        const historyResponse = document.getElementById('historyResponse');
+        const historyApiUrl = document.getElementById('historyApiUrl');
+        
+        getHistoryBtn.addEventListener('click', async () => {
+            const apiServer = document.getElementById('apiServer').value.replace(/\/$/, '');
+            const userId = document.getElementById('historyUserId').value;
+            const limit = document.getElementById('historyLimit').value;
+            const offset = document.getElementById('historyOffset').value;
+            const convId = document.getElementById('historyConvId').value;
+            
+            if (!userId) {
+                alert('请输入用户 ID');
+                return;
+            }
+            
+            let url = `${apiServer}/ocms/chat/history/${userId}?limit=${limit}&offset=${offset}`;
+            if (convId) {
+                url += `&conversation_id=${encodeURIComponent(convId)}`;
+            }
+            
+            historyApiUrl.textContent = url;
+            historyResponse.innerHTML = '<pre>加载中...</pre>';
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                historyResponse.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                
+                if (data.messages && data.messages.length > 0) {
+                    let html = '';
+                    data.messages.forEach(msg => {
+                        const senderClass = msg.sender === 'robot' ? 'robot' : '';
+                        const time = new Date(msg.timestamp * 1000).toLocaleString();
+                        html += `
+                            <div class="history-item">
+                                <span class="sender ${senderClass}">${msg.sender}</span>
+                                <span class="time">${time}</span>
+                                <div class="text">${msg.text || ''}</div>
+                            </div>
+                        `;
+                    });
+                    historyResponse.innerHTML = html;
+                }
+            } catch (e) {
+                historyResponse.innerHTML = '<pre style="color: red;">请求失败: ' + e.message + '</pre>';
+            }
+        });
+        
+        clearHistoryBtn.addEventListener('click', async () => {
+            const apiServer = document.getElementById('apiServer').value.replace(/\/$/, '');
+            const userId = document.getElementById('historyUserId').value;
+            
+            if (!userId) {
+                alert('请输入用户 ID');
+                return;
+            }
+            
+            if (!confirm(`确定要清空用户 ${userId} 的聊天记录吗？`)) {
+                return;
+            }
+            
+            const url = `${apiServer}/ocms/chat/history/${userId}`;
+            historyApiUrl.textContent = url;
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                historyResponse.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (e) {
+                historyResponse.innerHTML = '<pre style="color: red;">请求失败: ' + e.message + '</pre>';
+            }
+        });
+        
+        // ========== 文件上传功能 ==========
+        const fileDropZone = document.getElementById('fileDropZone');
+        const fileInput = document.getElementById('fileInput');
+        const selectedFile = document.getElementById('selectedFile');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const uploadResult = document.getElementById('uploadResult');
+        let currentFile = null;
+        
+        fileDropZone.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                currentFile = e.target.files[0];
+                selectedFile.textContent = '已选择: ' + currentFile.name + ' (' + (currentFile.size / 1024).toFixed(2) + ' KB)';
+            }
+        });
+        
+        fileDropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileDropZone.classList.add('dragover');
+        });
+        
+        fileDropZone.addEventListener('dragleave', () => {
+            fileDropZone.classList.remove('dragover');
+        });
+        
+        fileDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileDropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                currentFile = e.dataTransfer.files[0];
+                selectedFile.textContent = '已选择: ' + currentFile.name + ' (' + (currentFile.size / 1024).toFixed(2) + ' KB)';
+            }
+        });
+        
+        uploadBtn.addEventListener('click', async () => {
+            const apiServer = document.getElementById('uploadApiServer').value.replace(/\/$/, '');
+            
+            if (!currentFile) {
+                alert('请先选择文件');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', currentFile);
+            
+            uploadResult.style.display = 'block';
+            uploadResult.className = 'upload-result';
+            uploadResult.textContent = '上传中...';
+            
+            try {
+                const response = await fetch(`${apiServer}/ocms/upload/file`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    uploadResult.className = 'upload-result success';
+                    uploadResult.innerHTML = `
+                        <strong>上传成功!</strong><br>
+                        文件名: ${data.file_name}<br>
+                        文件大小: ${(data.file_size / 1024).toFixed(2)} KB<br>
+                        路径: ${data.file_path}
+                    `;
+                } else {
+                    uploadResult.className = 'upload-result error';
+                    uploadResult.textContent = '上传失败: ' + (data.detail || JSON.stringify(data));
+                }
+            } catch (e) {
+                uploadResult.className = 'upload-result error';
+                uploadResult.textContent = '请求失败: ' + e.message;
+            }
+        });
+        
+        // ========== 文件下载功能 ==========
+        const downloadBtn = document.getElementById('downloadBtn');
+        const downloadResult = document.getElementById('downloadResult');
+        
+        downloadBtn.addEventListener('click', () => {
+            const apiServer = document.getElementById('downloadApiServer').value.replace(/\/$/, '');
+            const filePath = document.getElementById('downloadPath').value;
+            
+            if (!filePath) {
+                alert('请输入文件完整路径');
+                return;
+            }
+            
+            const url = `${apiServer}/ocms/download/file?file_path=${encodeURIComponent(filePath)}`;
+            downloadResult.innerHTML = `<pre>正在下载...</pre>`;
+            
+            window.open(url, '_blank');
+            
+            setTimeout(() => {
+                downloadResult.innerHTML = `<pre>下载链接: ${url}</pre>`;
+            }, 1000);
         });
     </script>
 </body>
