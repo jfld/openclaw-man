@@ -91,7 +91,7 @@ interface MediaFile {
         }
       });
        log.info(`[WE XCX] Upload response: ${JSON.stringify(response.data)}`);
-      return response.data.file_path || null;
+      return response.data.file_name || null;
     } catch (err: any) {
       log?.error?.(`[WE XCX] Failed to upload media: ${err.message}`);
       if (err.response) {
