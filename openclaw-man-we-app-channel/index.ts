@@ -149,6 +149,126 @@ const channelPlugin: ChannelPlugin<any> = {
     }
   },
 
+  outbound: {
+    deliveryMode: "gateway" as const,
+
+    resolveTarget: (params: {
+      cfg?: any;
+      to?: string;
+      allowFrom?: string[];
+      accountId?: string | null;
+      mode?: string;
+    }) => {
+      const to = params.to;
+      if (!to) {
+        return { ok: false, error: new Error("缺少目标用户 ID") };
+      }
+      return { ok: true, to };
+    },
+
+    sendPayload: async (ctx: any) => {
+      const { cfg, to, payload, deps } = ctx;
+      const logger = deps?.log || console;
+      logger.info(`[WE XCX] outbound==>发送载荷: ${JSON.stringify(ctx)}`);
+      const ws = connections.get("default");
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        logger.warn(`[WE XCX] WebSocket 未打开 (状态: ${ws?.readyState})，无法发送回复`);
+        return {
+          channel: "we-xcx" as any,
+          messageId: "",
+          error: new Error("WebSocket 未连接")
+        };
+      }
+
+      const replyText = payload.text || "";
+      const mediaUrl = payload.mediaUrl || "";
+
+      const payload_json = JSON.stringify({
+        type: "message",
+        data: {
+          text: replyText,
+          mediaUrl: mediaUrl,
+          recipientId: to,
+          conversationId: payload.channelData?.conversationId || "default"
+        }
+      });
+
+      logger.info(`[WE XCX] 发送 WebSocket 载荷: ${payload_json}`);
+      ws.send(payload_json);
+
+      return {
+        channel: "we-xcx" as any,
+        messageId: `we-xcx-outbound-${Date.now()}`,
+        conversationId: payload.channelData?.conversationId
+      };
+    },
+
+    sendText: async (ctx: any) => {
+      const { cfg, to, text, deps } = ctx;
+      const logger = deps?.log || console;
+      logger.info(`[WE XCX] outbound==>发送文本: ${JSON.stringify(ctx)}`);
+      const ws = connections.get("default");
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        logger.warn(`[WE XCX] WebSocket 未打开 (状态: ${ws?.readyState})，无法发送回复`);
+        return {
+          channel: "we-xcx" as any,
+          messageId: "",
+          error: new Error("WebSocket 未连接")
+        };
+      }
+
+      const payload_json = JSON.stringify({
+        type: "message",
+        data: {
+          text: text,
+          recipientId: to,
+          conversationId: "default"
+        }
+      });
+
+      logger.info(`[WE XCX] 发送文本: ${payload_json}`);
+      ws.send(payload_json);
+
+      return {
+        channel: "we-xcx" as any,
+        messageId: `we-xcx-text-${Date.now()}`
+      };
+    },
+
+    sendMedia: async (ctx: any) => {
+      const { cfg, to, text, mediaUrl, deps } = ctx;
+      const logger = deps?.log || console;
+      logger.info(`[WE XCX] outbound==>发送媒体: ${JSON.stringify(ctx)}`);
+      const ws = connections.get("default");
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        logger.warn(`[WE XCX] WebSocket 未打开 (状态: ${ws?.readyState})，无法发送媒体`);
+        return {
+          channel: "we-xcx" as any,
+          messageId: "",
+          error: new Error("WebSocket 未连接")
+        };
+      }
+
+      const payload_json = JSON.stringify({
+        type: "message",
+        data: {
+          text: text || "",
+          mediaUrl: mediaUrl || "",
+          recipientId: to,
+          conversationId: "default"
+        }
+      });
+
+      logger.info(`[WE XCX] 发送媒体: ${payload_json}`);
+      ws.send(payload_json);
+
+      return {
+        channel: "we-xcx" as any,
+        messageId: `we-xcx-media-${Date.now()}`
+      };
+    }
+  },
+
   gateway: {
     startAccount: async (ctx: any) => {
       const config = ctx.account as WeXcxConfig;
@@ -289,7 +409,7 @@ const channelPlugin: ChannelPlugin<any> = {
                     RawBody: text,
                     CommandBody: text,
                     From: `we-xcx:${userId}`,
-                    To: "we-xcx:bot",
+                    To: userId,
                     SessionKey: route.sessionKey,
                     AccountId: "default",
                     ChatType: "direct",
@@ -302,7 +422,7 @@ const channelPlugin: ChannelPlugin<any> = {
                     Timestamp: Date.now(),
                     CommandSource: text ? "text" : "file",
                     OriginatingChannel: "we-xcx" as const,
-                    OriginatingTo: "we-xcx:bot",
+                    OriginatingTo: userId,
                     MediaPath: downloadedMediaPath,
                     MediaType: mediaType,
                     MediaUrl: downloadedMediaPath
