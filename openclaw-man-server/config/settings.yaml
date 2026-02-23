@@ -9,7 +9,7 @@ chat_history:
 
 upload:
   enabled: true
-  directory: "D:\\新建文件夹"
+  directory: "./upload"  # 上传文件保存目录（相对于项目根目录）
   max_file_size: 10485760  # 10MB in bytes
   allowed_extensions:
     - ".jpg"

@@ -50,6 +50,57 @@ interface MediaFile {
   originalName: string;
 }
 
+//上传
+  async function uploadMedia(
+    serverUrl: string,
+    mediaUrl: string,
+    workspacePath: string,
+    log?: any
+  ): Promise<string | null> {
+    if (!serverUrl || !mediaUrl) {
+      log?.error?.('[WE XCX] uploadMedia requires serverUrl and mediaUrl to be provided.');
+      return null;
+    }
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      const filePath = mediaUrl;
+      if (!fs.existsSync(filePath)) {
+        log?.error?.(`[WE XCX] File not found: ${filePath}`);
+        return null;
+      }
+
+      const fileBuffer = fs.readFileSync(filePath);
+      const fileName = path.basename(filePath);
+      const ext = path.extname(filePath).toLowerCase();
+      
+      log.info(`[WE XCX] Uploading file: ${fileName}, extension: ${ext}, size: ${fileBuffer.length}`);
+      
+      const FormData = (await import('form-data')).default;
+      
+      const form = new FormData();
+      form.append('file', fileBuffer, {
+        filename: fileName,
+        contentType: 'application/octet-stream'
+      });
+
+      const response = await axios.post(`${serverUrl}/upload/file`, form, {
+        headers: {
+          ...form.getHeaders()
+        }
+      });
+       log.info(`[WE XCX] Upload response: ${JSON.stringify(response.data)}`);
+      return response.data.file_path || null;
+    } catch (err: any) {
+      log?.error?.(`[WE XCX] Failed to upload media: ${err.message}`);
+      if (err.response) {
+        log?.error?.(`[WE XCX] Response status: ${err.response.status}, data: ${JSON.stringify(err.response.data)}`);
+      }
+      return null;
+    }
+  }
+
 async function downloadMedia(
   serverUrl: string,
   filePath: string,
@@ -74,7 +125,7 @@ async function downloadMedia(
     const path = await import('path');
     const fs = await import('fs');
     
-    const mediaDir = path.join("/home/user3", 'media', 'inbound');
+    const mediaDir = path.join(__dirname, 'media', 'inbound');
     fs.mkdirSync(mediaDir, { recursive: true });
 
     const contentDisposition = response.headers['content-disposition'] || '';
@@ -150,7 +201,7 @@ const channelPlugin: ChannelPlugin<any> = {
   },
 
   outbound: {
-    deliveryMode: "gateway" as const,
+    deliveryMode: "direct" as const,
 
     resolveTarget: (params: {
       cfg?: any;
@@ -439,11 +490,18 @@ const channelPlugin: ChannelPlugin<any> = {
                         //{"mediaUrls":["/home/user3/media/outbound/black_circle.png"],"mediaUrl":"/home/user3/media/outbound/black_circle.png","replyToTag":false,"replyToCurrent":false,"audioAsVoice":false}
                         const mediaUrl = replyPayload.mediaUrl || "";
                         if (ws.readyState === WebSocket.OPEN) {
+                          //上传媒体文件
+                          if (mediaUrl) {
+                            const fileId = await uploadMedia(serverUrl, mediaUrl, workspacePath, logger);
+                            if (fileId) {
+                                replyPayload.fileId = fileId;
+                            }
+                          }
                             const payload = JSON.stringify({
                                 type: "message",
                                 data: {
                                     text: replyText,
-                                    mediaUrl: mediaUrl,
+                                    mediaUrl: replyPayload.fileId,
                                     recipientId: userId,
                                     conversationId: conversationId // 回传 conversationId
                                 }

@@ -88,12 +88,12 @@ async def upload_file(
     file_ext = Path(original_filename).suffix.lower()
     
     # 检查文件扩展名是否允许
-    allowed_extensions = upload_config.get("allowed_extensions", [])
-    if file_ext not in allowed_extensions:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"不支持的文件类型 {file_ext}，允许的类型: {', '.join(allowed_extensions)}"
-        )
+    # allowed_extensions = upload_config.get("allowed_extensions", [])
+    # if file_ext not in allowed_extensions:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_400_BAD_REQUEST,
+    #         detail=f"不支持的文件类型 {file_ext}，允许的类型: {', '.join(allowed_extensions)}"
+    #     )
     
     # 生成唯一文件名: 原始名称_时间戳
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
