@@ -191,15 +191,17 @@ class ManServerServer:
                             pass
                             
                         text = msg_data.get("text")
+                        media_url = msg_data.get("mediaUrl")
                         conversation_id = msg_data.get("conversationId")
                         
-                        if target_user_id and text:
+                        if target_user_id and (text or media_url):
                             if target_user_id in self.user_connections:
                                 user_ws = self.user_connections[target_user_id]
                                 await self.ws_send(user_ws, json.dumps({
                                     "sender": "Robot",
                                     "robotId": robot_id,
                                     "text": text,
+                                    "mediaUrl": media_url,
                                     "conversationId": conversation_id
                                 }))
                                 logger.info(f"[Server -> User {target_user_id}] 已转发回复")
@@ -210,6 +212,7 @@ class ManServerServer:
                                         user_id=str(target_user_id),
                                         sender="robot",
                                         text=text,
+                                        media_url=media_url,
                                         robot_id=robot_id,
                                         conversation_id=conversation_id,
                                         message_id=f"msg_{datetime.now().timestamp()}"

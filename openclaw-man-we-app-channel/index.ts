@@ -263,8 +263,11 @@ const channelPlugin: ChannelPlugin<any> = {
                 
                 // 调试日志：检查当前配置
                 logger.debug(`[WE XCX] 当前配置 (from currentConfig): ${JSON.stringify(currentConfig)}`);
-                const serverUrl = (currentConfig?.serverUrl || config?.serverUrl) || "http://localhost:8080";
+                let serverUrl = (currentConfig?.serverUrl || config?.serverUrl) || "http://localhost:8080";
                 logger.debug(`[WE XCX] 使用的 serverUrl: ${serverUrl}`);
+                if (!serverUrl.startsWith("http")) {
+                    serverUrl = "http://" + serverUrl;
+                }
 
                 // 下载媒体文件（如果有）
                 let downloadedMediaPath: string | undefined;
@@ -313,11 +316,14 @@ const channelPlugin: ChannelPlugin<any> = {
                     deliver: async (replyPayload: any) => {
                         logger.info(`[WE XCX] 正在投递回复: ${JSON.stringify(replyPayload)}`);
                         const replyText = replyPayload.text || "";
+                        //{"mediaUrls":["/home/user3/media/outbound/black_circle.png"],"mediaUrl":"/home/user3/media/outbound/black_circle.png","replyToTag":false,"replyToCurrent":false,"audioAsVoice":false}
+                        const mediaUrl = replyPayload.mediaUrl || "";
                         if (ws.readyState === WebSocket.OPEN) {
                             const payload = JSON.stringify({
                                 type: "message",
                                 data: {
                                     text: replyText,
+                                    mediaUrl: mediaUrl,
                                     recipientId: userId,
                                     conversationId: conversationId // 回传 conversationId
                                 }

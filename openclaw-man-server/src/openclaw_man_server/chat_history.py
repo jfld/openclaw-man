@@ -39,6 +39,7 @@ class ChatHistoryService:
         user_id: str, 
         sender: str,  # "user" 或 "robot"
         text: str,
+        media_url: Optional[str] = None,
         robot_id: Optional[str] = None,
         conversation_id: Optional[str] = None,
         message_id: Optional[str] = None
