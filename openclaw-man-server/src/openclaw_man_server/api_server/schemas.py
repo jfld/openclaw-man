@@ -94,8 +94,8 @@ class Conversation(ConversationBase):
 # Upload Schemas
 class UploadResponse(BaseModel):
     success: bool
-    file_path: str
     file_name: str
     file_size: int
-    content_type: str
+    file_path: Optional[str] = None
+    content_type: Optional[str] = None
     message: Optional[str] = None

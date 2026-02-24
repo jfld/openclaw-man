@@ -66,6 +66,7 @@ router = APIRouter()
 
 @router.post("/upload/file", response_model=schemas.UploadResponse, summary="上传文件")
 async def upload_file(
+    user_id: str = Query(..., description="用户ID"),
     file: UploadFile = File(...)
 ):
     """
@@ -74,6 +75,7 @@ async def upload_file(
     - 使用时间戳 + UUID 保证文件名唯一性
     - 返回文件的完整路径（相对于服务器）
     - 支持图片、文档、视频等常见格式
+    - 文件将保存在以 user_id 命名的子目录中
     """
     upload_config = get_upload_config()
     
@@ -83,39 +85,25 @@ async def upload_file(
             detail="文件上传功能已禁用"
         )
     
-    # 获取文件名和扩展名
     original_filename = file.filename
     file_ext = Path(original_filename).suffix.lower()
     
-    # 检查文件扩展名是否允许
-    # allowed_extensions = upload_config.get("allowed_extensions", [])
-    # if file_ext not in allowed_extensions:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_400_BAD_REQUEST,
-    #         detail=f"不支持的文件类型 {file_ext}，允许的类型: {', '.join(allowed_extensions)}"
-    #     )
-    
-    # 生成唯一文件名: 原始名称_时间戳
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     unique_filename = f"{Path(original_filename).stem}_{timestamp}{file_ext}"
     
-    # 确保上传目录存在
-    upload_dir = ensure_upload_directory()
+    upload_dir = ensure_upload_directory(user_id)
     file_path = upload_dir / unique_filename
     
-    # 读取文件内容并写入
     try:
         content = await file.read()
         
-        # 检查文件大小
-        max_size = upload_config.get("max_file_size", 10 * 1024 * 1024)  # 默认10MB
+        max_size = upload_config.get("max_file_size", 10 * 1024 * 1024)
         if len(content) > max_size:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                 detail=f"文件大小超过限制，最大允许 {max_size // (1024*1024)} MB"
             )
         
-        # 写入文件
         with open(file_path, "wb") as f:
             f.write(content)
             
@@ -127,63 +115,45 @@ async def upload_file(
             detail=f"文件保存失败: {str(e)}"
         )
     
-    # 返回文件完整路径（统一使用正斜杠）
     full_path = str(file_path).replace("\\", "/")
     
     return schemas.UploadResponse(
         success=True,
-        file_path=full_path,
         file_name=unique_filename,
         file_size=len(content),
-        content_type=file.content_type or "application/octet-stream",
         message="文件上传成功"
     )
 
 @router.get("/download/file", summary="下载文件")
 async def download_file(
-    file_path: str = Query(..., description="文件的绝对路径或文件名")
+    user_id: str = Query(..., description="用户ID"),
+    file_name: str = Query(..., description="文件名")
 ):
     """
-    根据文件的绝对路径或文件名下载文件
+    根据文件名下载用户目录下的文件
     
-    - 如果传入绝对路径，直接使用该路径
-    - 如果只传入文件名，则到上传目录中查找文件
+    - 文件必须位于以 user_id 命名的子目录中
     - 返回文件内容
     """
-    if not file_path:
+    if not file_name:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="必须提供文件路径"
+            detail="必须提供文件名"
         )
     
-    upload_dir = ensure_upload_directory()
-    
-    # 检查是否传入的是绝对路径还是文件名
-    file_path_obj = Path(file_path)
-    
-    if file_path_obj.is_absolute():
-        # 绝对路径，直接使用
-        target_path = file_path_obj
-    else:
-        # 只传入文件名，尝试在上传目录中查找
-        target_path = upload_dir / file_path
-        if not target_path.exists():
-            # 尝试在上传目录的子目录中查找
-            for item in upload_dir.rglob(file_path):
-                if item.is_file():
-                    target_path = item
-                    break
+    upload_dir = ensure_upload_directory(user_id)
+    target_path = upload_dir / file_name
     
     if not target_path.exists():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"文件不存在: {file_path}"
+            detail=f"文件不存在: {file_name}"
         )
     
     if not target_path.is_file():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"路径不是文件: {file_path}"
+            detail=f"路径不是文件: {file_name}"
         )
     
     filename = target_path.name

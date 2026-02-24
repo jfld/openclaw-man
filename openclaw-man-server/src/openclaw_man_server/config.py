@@ -53,9 +53,10 @@ def get_upload_config() -> dict:
     
     return upload_config
 
-def ensure_upload_directory() -> Path:
+def ensure_upload_directory(user_id: str = None) -> Path:
     """
     确保上传目录存在，返回目录路径
+    如果提供了 user_id，则返回该用户的子目录
     """
     upload_config = get_upload_config()
     upload_dir = Path(upload_config["directory"])
@@ -65,6 +66,9 @@ def ensure_upload_directory() -> Path:
         current_dir = Path(__file__).parent
         project_root = current_dir.parent.parent
         upload_dir = project_root / upload_config["directory"]
+    
+    if user_id:
+        upload_dir = upload_dir / str(user_id)
     
     upload_dir.mkdir(parents=True, exist_ok=True)
     return upload_dir
