@@ -1,3 +1,4 @@
+from ast import main
 import json
 import asyncio
 import os
@@ -54,8 +55,8 @@ class ChatHistoryService:
                 
                 # 创建新消息
                 new_message = {
-                    "id": message_id or f"msg_{datetime.now().timestamp()}",
-                    "timestamp": datetime.now().timestamp(),
+                    "id": message_id or f"msg_{int(datetime.now().timestamp())}",
+                    "timestamp": int(datetime.now().timestamp()),
                     "sender": sender,  # "user" 或 "robot"
                     "text": text,
                     "robot_id": robot_id,

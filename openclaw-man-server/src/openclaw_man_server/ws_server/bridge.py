@@ -215,7 +215,7 @@ class ManServerServer:
                                         media_url=media_url,
                                         robot_id=robot_id,
                                         conversation_id=conversation_id,
-                                        message_id=f"msg_{datetime.now().timestamp()}"
+                                        message_id=f"msg_{ int(datetime.now().timestamp())}"
                                     )
                                 )
                             else:
@@ -283,7 +283,7 @@ class ManServerServer:
                             "userId": str(user_id), # 转换为字符串以兼容
                             "text": text,
                             "conversationId": conversation_id,
-                            "id": f"msg_{asyncio.get_event_loop().time()}"
+                            "id": f"msg_{int(datetime.now().timestamp())}"
                         }
                     }
                     
