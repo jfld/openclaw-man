@@ -55,6 +55,7 @@ interface MediaFile {
     serverUrl: string,
     mediaUrl: string,
     workspacePath: string,
+    userId: string,
     log?: any
   ): Promise<string | null> {
     if (!serverUrl || !mediaUrl) {
@@ -85,7 +86,7 @@ interface MediaFile {
         contentType: 'application/octet-stream'
       });
 
-      const response = await axios.post(`${serverUrl}/upload/file`, form, {
+      const response = await axios.post(`${serverUrl}/upload/file?user_id=${userId}`, form, {
         headers: {
           ...form.getHeaders()
         }
@@ -105,6 +106,7 @@ async function downloadMedia(
   serverUrl: string,
   filePath: string,
   workspacePath: string,
+  userId: string,
   log?: any
 ): Promise<MediaFile | null> {
   if (!serverUrl || !filePath) {
@@ -114,7 +116,7 @@ async function downloadMedia(
 
   try {
     const normalizedServerUrl = serverUrl.replace(/\/$/, '');
-    const downloadUrl = `${normalizedServerUrl}/download/file?file_path=${encodeURIComponent(filePath)}`;
+    const downloadUrl = `${normalizedServerUrl}/download/file?user_id=${userId}&file_name=${encodeURIComponent(filePath)}`;
     
     log?.debug?.(`[WE XCX] Downloading media from: ${downloadUrl}`);
     
@@ -146,8 +148,14 @@ async function downloadMedia(
     log?.debug?.(`[WE XCX] Media saved to workspace: ${mediaPath}`);
     return { path: mediaPath, mimeType: contentType, originalName };
   } catch (err: any) {
+    const errorMsg = err.response?.data 
+      ? JSON.stringify(err.response.data) 
+      : err.message || err.toString();
     if (log?.error) {
-      log.error(`[WE XCX] Failed to download media: ${err.message}`);
+      log.error(`[WE XCX] Failed to download media: ${errorMsg}`);
+      if (err.response?.status) {
+        log.error(`[WE XCX] HTTP status: ${err.response.status}`);
+      }
     }
     return null;
   }
@@ -445,7 +453,7 @@ const channelPlugin: ChannelPlugin<any> = {
                 let downloadedMediaMimeType: string | undefined;
                 let originalMediaName: string | undefined;
                 if (filePath && mediaType) {
-                    const media = await downloadMedia(serverUrl, filePath, workspacePath, logger);
+                    const media = await downloadMedia(serverUrl, filePath, workspacePath, userId, logger);
                     if (media) {
                         downloadedMediaPath = media.path;
                         downloadedMediaMimeType = media.mimeType;
@@ -492,7 +500,7 @@ const channelPlugin: ChannelPlugin<any> = {
                         if (ws.readyState === WebSocket.OPEN) {
                           //上传媒体文件
                           if (mediaUrl) {
-                            const fileId = await uploadMedia(serverUrl, mediaUrl, workspacePath, logger);
+                            const fileId = await uploadMedia(serverUrl, mediaUrl, workspacePath, userId, logger);
                             if (fileId) {
                                 replyPayload.fileId = fileId;
                             }
