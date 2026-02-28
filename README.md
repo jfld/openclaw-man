@@ -19,9 +19,9 @@ OpenClaw Man 是一个开源解决方案，旨在通过中间件服务端作为�
         *   作为中转站，将消息转发至 OpenClaw 并接收 AI 回复。
     *   **技术栈**: Python, FastAPI, Websockets, MySQL。
 
-3.  **[OpenClaw WE XCX Channel](openclaw-man-we-app-channel/README.md)** (OpenClaw 插件)
+3.  **[OpenClaw cloud-bot-channel Channel](openclaw-man-we-app-channel/README.md)** (OpenClaw 插件)
     *   **角色**: OpenClaw 的渠道适配器。
-    *   **功能**: 安装在 OpenClaw 内部，注册一个新的 `we-xcx` 渠道，使 OpenClaw 能够识别并处理来自小程序的消息格式。
+    *   **功能**: 安装在 OpenClaw 内部，注册一个新的 `cloud-bot-channel` 渠道，使 OpenClaw 能够识别并处理来自小程序的消息格式。
 
 ### 交互流程
 

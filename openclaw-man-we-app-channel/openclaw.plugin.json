@@ -1,7 +1,7 @@
 {
-  "id": "we-xcx",
-  "name": "WE XCX",
-  "description": "Integration with WE XCX Chat Service",
+  "id": "cloud-bot-channel",
+  "name": "cloud-bot-channel",
+  "description": "Integration with cloud-bot-channel Chat Service",
   "kind": "channel",
   "configSchema": {
     "type": "object",

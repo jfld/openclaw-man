@@ -59,7 +59,7 @@ interface MediaFile {
     log?: any
   ): Promise<string | null> {
     if (!serverUrl || !mediaUrl) {
-      log?.error?.('[WE XCX] uploadMedia requires serverUrl and mediaUrl to be provided.');
+      log?.error?.('[cloud-bot-channel] uploadMedia requires serverUrl and mediaUrl to be provided.');
       return null;
     }
     try {
@@ -68,7 +68,7 @@ interface MediaFile {
       
       const filePath = mediaUrl;
       if (!fs.existsSync(filePath)) {
-        log?.error?.(`[WE XCX] File not found: ${filePath}`);
+        log?.error?.(`[cloud-bot-channel] File not found: ${filePath}`);
         return null;
       }
 
@@ -76,7 +76,7 @@ interface MediaFile {
       const fileName = path.basename(filePath);
       const ext = path.extname(filePath).toLowerCase();
       
-      log.info(`[WE XCX] Uploading file: ${fileName}, extension: ${ext}, size: ${fileBuffer.length}`);
+      log.info(`[cloud-bot-channel] Uploading file: ${fileName}, extension: ${ext}, size: ${fileBuffer.length}`);
       
       const FormData = (await import('form-data')).default;
       
@@ -91,12 +91,12 @@ interface MediaFile {
           ...form.getHeaders()
         }
       });
-       log.info(`[WE XCX] Upload response: ${JSON.stringify(response.data)}`);
+       log.info(`[cloud-bot-channel] Upload response: ${JSON.stringify(response.data)}`);
       return response.data.file_name || null;
     } catch (err: any) {
-      log?.error?.(`[WE XCX] Failed to upload media: ${err.message}`);
+      log?.error?.(`[cloud-bot-channel] Failed to upload media: ${err.message}`);
       if (err.response) {
-        log?.error?.(`[WE XCX] Response status: ${err.response.status}, data: ${JSON.stringify(err.response.data)}`);
+        log?.error?.(`[cloud-bot-channel] Response status: ${err.response.status}, data: ${JSON.stringify(err.response.data)}`);
       }
       return null;
     }
@@ -110,7 +110,7 @@ async function downloadMedia(
   log?: any
 ): Promise<MediaFile | null> {
   if (!serverUrl || !filePath) {
-    log?.error?.('[WE XCX] downloadMedia requires serverUrl and filePath to be provided.');
+    log?.error?.('[cloud-bot-channel] downloadMedia requires serverUrl and filePath to be provided.');
     return null;
   }
 
@@ -118,7 +118,7 @@ async function downloadMedia(
     const normalizedServerUrl = serverUrl.replace(/\/$/, '');
     const downloadUrl = `${normalizedServerUrl}/download/file?user_id=${userId}&file_name=${encodeURIComponent(filePath)}`;
     
-    log?.debug?.(`[WE XCX] Downloading media from: ${downloadUrl}`);
+    log?.debug?.(`[cloud-bot-channel] Downloading media from: ${downloadUrl}`);
     
     const response = await axios.get(downloadUrl, { responseType: 'arraybuffer' });
     const contentType = response.headers['content-type'] || 'application/octet-stream';
@@ -145,16 +145,16 @@ async function downloadMedia(
     const mediaPath = path.join(mediaDir, filename);
     currentLogger.debug(`文件路径: ${mediaPath}`); 
     fs.writeFileSync(mediaPath, buffer);
-    log?.debug?.(`[WE XCX] Media saved to workspace: ${mediaPath}`);
+    log?.debug?.(`[cloud-bot-channel] Media saved to workspace: ${mediaPath}`);
     return { path: mediaPath, mimeType: contentType, originalName };
   } catch (err: any) {
     const errorMsg = err.response?.data 
       ? JSON.stringify(err.response.data) 
       : err.message || err.toString();
     if (log?.error) {
-      log.error(`[WE XCX] Failed to download media: ${errorMsg}`);
+      log.error(`[cloud-bot-channel] Failed to download media: ${errorMsg}`);
       if (err.response?.status) {
-        log.error(`[WE XCX] HTTP status: ${err.response.status}`);
+        log.error(`[cloud-bot-channel] HTTP status: ${err.response.status}`);
       }
     }
     return null;
@@ -162,9 +162,9 @@ async function downloadMedia(
 }
 
 const channelPlugin: ChannelPlugin<any> = {
-  id: "we-xcx",
+  id: "cloud-bot-channel",
   meta: {
-    description: "通过全双工 WebSocket 连接到 WE XCX 聊天服务",
+    description: "通过全双工 WebSocket 连接到 cloud-bot-channel 聊天服务",
   } as any,
   capabilities: {
     chatTypes: ["direct"],
@@ -190,9 +190,9 @@ const channelPlugin: ChannelPlugin<any> = {
   
   config: {
     listAccountIds: (cfg: any) => {
-       // 检查是否在 plugins.entries.we-xcx 中配置
-       // 配置结构是 cfg.plugins.entries['we-xcx']
-       const entry = cfg.plugins?.entries?.['we-xcx'];
+       // 检查是否在 plugins.entries.cloud-bot-channel 中配置
+       // 配置结构是 cfg.plugins.entries['cloud-bot-channel']
+       const entry = cfg.plugins?.entries?.['cloud-bot-channel'];
        if (entry && (entry.enabled === undefined || entry.enabled)) {
          return ["default"];
        }
@@ -200,11 +200,11 @@ const channelPlugin: ChannelPlugin<any> = {
     },
     resolveAccount: (cfg: any, accountId?: string | null) => {
       // 返回配置对象
-      const entry = cfg.plugins?.entries?.['we-xcx'];
+      const entry = cfg.plugins?.entries?.['cloud-bot-channel'];
       return entry?.config || {};
     },
     describeAccount: (account: any) => {
-        return { accountId: "default", id: "default", name: "WE XCX 默认账户" };
+        return { accountId: "default", id: "default", name: "cloud-bot-channel 默认账户" };
     }
   },
 
@@ -228,12 +228,12 @@ const channelPlugin: ChannelPlugin<any> = {
     sendPayload: async (ctx: any) => {
       const { cfg, to, payload, deps } = ctx;
       const logger = deps?.log || console;
-      logger.info(`[WE XCX] outbound==>发送载荷: ${JSON.stringify(ctx)}`);
+      logger.info(`[cloud-bot-channel] outbound==>发送载荷: ${JSON.stringify(ctx)}`);
       const ws = connections.get("default");
       if (!ws || ws.readyState !== WebSocket.OPEN) {
-        logger.warn(`[WE XCX] WebSocket 未打开 (状态: ${ws?.readyState})，无法发送回复`);
+        logger.warn(`[cloud-bot-channel] WebSocket 未打开 (状态: ${ws?.readyState})，无法发送回复`);
         return {
-          channel: "we-xcx" as any,
+          channel: "cloud-bot-channel" as any,
           messageId: "",
           error: new Error("WebSocket 未连接")
         };
@@ -252,12 +252,12 @@ const channelPlugin: ChannelPlugin<any> = {
         }
       });
 
-      logger.info(`[WE XCX] 发送 WebSocket 载荷: ${payload_json}`);
+      logger.info(`[cloud-bot-channel] 发送 WebSocket 载荷: ${payload_json}`);
       ws.send(payload_json);
 
       return {
-        channel: "we-xcx" as any,
-        messageId: `we-xcx-outbound-${Date.now()}`,
+        channel: "cloud-bot-channel" as any,
+        messageId: `cloud-bot-channel-outbound-${Date.now()}`,
         conversationId: payload.channelData?.conversationId
       };
     },
@@ -265,12 +265,12 @@ const channelPlugin: ChannelPlugin<any> = {
     sendText: async (ctx: any) => {
       const { cfg, to, text, deps } = ctx;
       const logger = deps?.log || console;
-      logger.info(`[WE XCX] outbound==>发送文本: ${JSON.stringify(ctx)}`);
+      logger.info(`[cloud-bot-channel] outbound==>发送文本: ${JSON.stringify(ctx)}`);
       const ws = connections.get("default");
       if (!ws || ws.readyState !== WebSocket.OPEN) {
-        logger.warn(`[WE XCX] WebSocket 未打开 (状态: ${ws?.readyState})，无法发送回复`);
+        logger.warn(`[cloud-bot-channel] WebSocket 未打开 (状态: ${ws?.readyState})，无法发送回复`);
         return {
-          channel: "we-xcx" as any,
+          channel: "cloud-bot-channel" as any,
           messageId: "",
           error: new Error("WebSocket 未连接")
         };
@@ -285,24 +285,24 @@ const channelPlugin: ChannelPlugin<any> = {
         }
       });
 
-      logger.info(`[WE XCX] 发送文本: ${payload_json}`);
+      logger.info(`[cloud-bot-channel] 发送文本: ${payload_json}`);
       ws.send(payload_json);
 
       return {
-        channel: "we-xcx" as any,
-        messageId: `we-xcx-text-${Date.now()}`
+        channel: "cloud-bot-channel" as any,
+        messageId: `cloud-bot-channel-text-${Date.now()}`
       };
     },
 
     sendMedia: async (ctx: any) => {
       const { cfg, to, text, mediaUrl, deps } = ctx;
       const logger = deps?.log || console;
-      logger.info(`[WE XCX] outbound==>发送媒体: ${JSON.stringify(ctx)}`);
+      logger.info(`[cloud-bot-channel] outbound==>发送媒体: ${JSON.stringify(ctx)}`);
       const ws = connections.get("default");
       if (!ws || ws.readyState !== WebSocket.OPEN) {
-        logger.warn(`[WE XCX] WebSocket 未打开 (状态: ${ws?.readyState})，无法发送媒体`);
+        logger.warn(`[cloud-bot-channel] WebSocket 未打开 (状态: ${ws?.readyState})，无法发送媒体`);
         return {
-          channel: "we-xcx" as any,
+          channel: "cloud-bot-channel" as any,
           messageId: "",
           error: new Error("WebSocket 未连接")
         };
@@ -318,12 +318,12 @@ const channelPlugin: ChannelPlugin<any> = {
         }
       });
 
-      logger.info(`[WE XCX] 发送媒体: ${payload_json}`);
+      logger.info(`[cloud-bot-channel] 发送媒体: ${payload_json}`);
       ws.send(payload_json);
 
       return {
-        channel: "we-xcx" as any,
-        messageId: `we-xcx-media-${Date.now()}`
+        channel: "cloud-bot-channel" as any,
+        messageId: `cloud-bot-channel-media-${Date.now()}`
       };
     }
   },
@@ -335,7 +335,7 @@ const channelPlugin: ChannelPlugin<any> = {
       // 注意：ctx.runtime 通常没有 'ingest' 或 'channel'。
       const runtime = ctx.runtime; 
       const logger = runtime.logging && runtime.logging.getChildLogger 
-        ? runtime.logging.getChildLogger({ module: "we-xcx" })
+        ? runtime.logging.getChildLogger({ module: "cloud-bot-channel" })
         : { 
             info: console.log, 
             warn: console.warn, 
@@ -349,14 +349,14 @@ const channelPlugin: ChannelPlugin<any> = {
       currentCtx = ctx;
 
       // 调试日志：输出完整配置
-      logger.debug(`[WE XCX] 完整配置: ${JSON.stringify(config)}`);
+      logger.debug(`[cloud-bot-channel] 完整配置: ${JSON.stringify(config)}`);
 
       if (!core) {
-        logger.error("[WE XCX] 插件运行时未初始化。Register 函数未被调用？");
+        logger.error("[cloud-bot-channel] 插件运行时未初始化。Register 函数未被调用？");
       }
 
       if (!config.apiKey || !config.apiEndpoint) {
-        logger.warn("[WE XCX] 配置中缺少 apiKey 或 apiEndpoint。跳过连接。");
+        logger.warn("[cloud-bot-channel] 配置中缺少 apiKey 或 apiEndpoint。跳过连接。");
         return;
       }
       
@@ -365,7 +365,7 @@ const channelPlugin: ChannelPlugin<any> = {
       const endpoint = (config.apiEndpoint || "").replace(/^https?:\/\//, '').replace(/^wss?:\/\//, '');
       const wsUrl = `${protocol}://${endpoint}/v1/stream?apiKey=${config.apiKey}`;
       
-      logger.info(`[WE XCX] 正在连接到 ${wsUrl}...`);
+      logger.info(`[cloud-bot-channel] 正在连接到 ${wsUrl}...`);
       
       // 清除之前的重连计时器
       if (reconnectTimer) {
@@ -387,7 +387,7 @@ const channelPlugin: ChannelPlugin<any> = {
       }
 
       ws.on("open", () => {
-        logger.info("[WE XCX] 已连接！");
+        logger.info("[cloud-bot-channel] 已连接！");
         reconnectAttempts = 0; // 重置重连计数
         // 发送排队的消息
         const queue = messageQueues.get("default") || [];
@@ -400,13 +400,13 @@ const channelPlugin: ChannelPlugin<any> = {
       ws.on("message", async (data: any) => {
         try {
           const str = data.toString();
-          logger.info(`[WE XCX] 收到消息: ${str}`); // 记录原始消息以进行调试
+          logger.info(`[cloud-bot-channel] 收到消息: ${str}`); // 记录原始消息以进行调试
           
           let msg: any;
           try {
              msg = JSON.parse(str);
           } catch (e) {
-             logger.warn(`[WE XCX] JSON 解析失败: ${str}`);
+             logger.warn(`[cloud-bot-channel] JSON 解析失败: ${str}`);
              return;
           }
           
@@ -420,7 +420,7 @@ const channelPlugin: ChannelPlugin<any> = {
             const text = readString(msgData, "text") || "";
             const userId = readString(msgData, "userId") || "unknown";
             const conversationId = readString(msgData, "conversationId") || "default";
-            const msgId = readString(msgData, "id") || `we-xcx-${Date.now()}`;
+            const msgId = readString(msgData, "id") || `cloud-bot-channel-${Date.now()}`;
             const filePath = readString(msgData, "filePath");
             const mediaType = readString(msgData, "mediaType");
             
@@ -431,19 +431,19 @@ const channelPlugin: ChannelPlugin<any> = {
                 // 解析路由 (代理)
                 const route = core.channel.routing.resolveAgentRoute({
                     cfg,
-                    channel: "we-xcx",
+                    channel: "cloud-bot-channel",
                     peer: { kind: "dm", id: userId }
                 });
                 
-                logger.info(`[WE XCX] 解析路由: agentId=${route.agentId}, sessionKey=${route.sessionKey}`);
+                logger.info(`[cloud-bot-channel] 解析路由: agentId=${route.agentId}, sessionKey=${route.sessionKey}`);
 
                 // 获取工作空间路径用于保存下载的媒体文件
                 const workspacePath = core.channel.session.resolveStorePath(cfg.session?.store, { agentId: route.agentId });
                 
                 // 调试日志：检查当前配置
-                logger.debug(`[WE XCX] 当前配置 (from currentConfig): ${JSON.stringify(currentConfig)}`);
+                logger.debug(`[cloud-bot-channel] 当前配置 (from currentConfig): ${JSON.stringify(currentConfig)}`);
                 let serverUrl = (currentConfig?.serverUrl || config?.serverUrl) || "http://localhost:8080";
-                logger.debug(`[WE XCX] 使用的 serverUrl: ${serverUrl}`);
+                logger.debug(`[cloud-bot-channel] 使用的 serverUrl: ${serverUrl}`);
                 if (!serverUrl.startsWith("http")) {
                     serverUrl = "http://" + serverUrl;
                 }
@@ -458,7 +458,7 @@ const channelPlugin: ChannelPlugin<any> = {
                         downloadedMediaPath = media.path;
                         downloadedMediaMimeType = media.mimeType;
                         originalMediaName = media.originalName;
-                        logger.info(`[WE XCX] Media downloaded: ${downloadedMediaPath}`);
+                        logger.info(`[cloud-bot-channel] Media downloaded: ${downloadedMediaPath}`);
                     }
                 }
 
@@ -467,7 +467,7 @@ const channelPlugin: ChannelPlugin<any> = {
                     Body: text || (originalMediaName ? `<media:${mediaType || 'file'}:${originalMediaName}>` : `<media:${mediaType || 'file'}>`),
                     RawBody: text,
                     CommandBody: text,
-                    From: `we-xcx:${userId}`,
+                    From: `cloud-bot-channel:${userId}`,
                     To: userId,
                     SessionKey: route.sessionKey,
                     AccountId: "default",
@@ -475,12 +475,12 @@ const channelPlugin: ChannelPlugin<any> = {
                     ConversationLabel: conversationId,
                     SenderName: userId,
                     SenderId: userId,
-                    Provider: "we-xcx" as const,
-                    Surface: "we-xcx" as const,
+                    Provider: "cloud-bot-channel" as const,
+                    Surface: "cloud-bot-channel" as const,
                     MessageSid: msgId,
                     Timestamp: Date.now(),
                     CommandSource: text ? "text" : "file",
-                    OriginatingChannel: "we-xcx" as const,
+                    OriginatingChannel: "cloud-bot-channel" as const,
                     OriginatingTo: userId,
                     MediaPath: downloadedMediaPath,
                     MediaType: mediaType,
@@ -493,7 +493,7 @@ const channelPlugin: ChannelPlugin<any> = {
                     responsePrefixContextProvider: () => ({ prefix: "" }) as any,
                     humanDelay: core.channel.reply.resolveHumanDelayConfig(cfg, route.agentId),
                     deliver: async (replyPayload: any) => {
-                        logger.info(`[WE XCX] 正在投递回复: ${JSON.stringify(replyPayload)}`);
+                        logger.info(`[cloud-bot-channel] 正在投递回复: ${JSON.stringify(replyPayload)}`);
                         const replyText = replyPayload.text || "";
                         //{"mediaUrls":["/home/user3/media/outbound/black_circle.png"],"mediaUrl":"/home/user3/media/outbound/black_circle.png","replyToTag":false,"replyToCurrent":false,"audioAsVoice":false}
                         const mediaUrl = replyPayload.mediaUrl || "";
@@ -514,14 +514,14 @@ const channelPlugin: ChannelPlugin<any> = {
                                     conversationId: conversationId // 回传 conversationId
                                 }
                             });
-                            logger.info(`[WE XCX] 发送 WebSocket 载荷: ${payload}`);
+                            logger.info(`[cloud-bot-channel] 发送 WebSocket 载荷: ${payload}`);
                             ws.send(payload);
                         } else {
-                            logger.warn(`[WE XCX] WebSocket 未打开 (状态: ${ws.readyState})，无法发送回复`);
+                            logger.warn(`[cloud-bot-channel] WebSocket 未打开 (状态: ${ws.readyState})，无法发送回复`);
                         }
                     },
                     onError: (err: any, info: any) => {
-                        logger.error(`[WE XCX] 回复错误: ${err}`);
+                        logger.error(`[cloud-bot-channel] 回复错误: ${err}`);
                     }
                 });
 
@@ -533,22 +533,22 @@ const channelPlugin: ChannelPlugin<any> = {
                 });
 
             } else if (!text && !filePath) {
-              logger.warn("[WE XCX] 收到没有文本内容的消息");
+              logger.warn("[cloud-bot-channel] 收到没有文本内容的消息");
             } else if (!core) {
-                logger.error("[WE XCX] 核心运行时不可用，无法处理消息");
+                logger.error("[cloud-bot-channel] 核心运行时不可用，无法处理消息");
             }
           }
         } catch (e) {
-          logger.error(`[WE XCX] 处理消息时出错: ${e}`);
+          logger.error(`[cloud-bot-channel] 处理消息时出错: ${e}`);
         }
       });
 
       ws.on("error", (err) => {
-        logger.error(`[WE XCX] WebSocket 错误: ${err}`);
+        logger.error(`[cloud-bot-channel] WebSocket 错误: ${err}`);
       });
 
       ws.on("close", () => {
-        logger.info("[WE XCX] 已断开连接");
+        logger.info("[cloud-bot-channel] 已断开连接");
         connections.delete("default");
         
         // 触发重连
@@ -567,7 +567,7 @@ function attemptReconnect(ctx: any, config: WeXcxConfig, logger: any) {
   const log = currentLogger || logger;
   
   if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-    log.error(`[WE XCX] 达到最大重连次数 (${MAX_RECONNECT_ATTEMPTS})，停止重连`);
+    log.error(`[cloud-bot-channel] 达到最大重连次数 (${MAX_RECONNECT_ATTEMPTS})，停止重连`);
     return;
   }
   
@@ -578,7 +578,7 @@ function attemptReconnect(ctx: any, config: WeXcxConfig, logger: any) {
   );
   
   reconnectAttempts++;
-  log.info(`[WE XCX] ${delay/1000}秒后尝试重连 (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+  log.info(`[cloud-bot-channel] ${delay/1000}秒后尝试重连 (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
   
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
@@ -592,9 +592,9 @@ function attemptReconnect(ctx: any, config: WeXcxConfig, logger: any) {
 }
 
 const plugin = {
-  id: "we-xcx",
-  name: "WE XCX",
-  description: "WE XCX 通道插件",
+  id: "cloud-bot-channel",
+  name: "cloud-bot-channel",
+  description: "cloud-bot-channel 通道插件",
   configSchema: {}, 
   register(api: OpenClawPluginApi) {
     core = api.runtime;

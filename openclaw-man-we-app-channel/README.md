@@ -1,6 +1,6 @@
-# OpenClaw WE XCX Channel Plugin
+# OpenClaw cloud-bot-channel Channel Plugin
 
-这是一个 OpenClaw 的 WE XCX 渠道集成插件。
+这是一个 OpenClaw 的 cloud-bot-channel 渠道集成插件。
 
 ## 🛠 开发指南
 
@@ -30,7 +30,7 @@ npm test
 chmod +x package_plugin.sh
 ./package_plugin.sh
 ```
-打包成功后，生成的插件包位于 `channel/we-xcx.zip`。
+打包成功后，生成的插件包位于 `channel/cloud-bot-channel.zip`。
 
 ## 🚀 运行说明
 
@@ -38,7 +38,7 @@ chmod +x package_plugin.sh
 
 1. **安装插件**
    ```bash
-   openclaw plugins install channel/we-xcx.zip
+   openclaw plugins install channel/cloud-bot-channel.zip
    ```
 
 2. **配置 OpenClaw**
@@ -49,7 +49,7 @@ chmod +x package_plugin.sh
    ,
    "plugins": {
      "entries": {
-       "we-xcx": {
+       "cloud-bot-channel": {
          "enabled": true,
          "config": {
            "apiKey": "sk-api-xxxxxxx",
@@ -78,8 +78,8 @@ chmod +x package_plugin.sh
    11:28:13 [gateway] listening on ws://[::1]:18789
    11:28:13 [gateway] log file: \tmp\openclaw\openclaw-2026-02-08.log
    11:28:13 [browser/service] Browser control service ready (profiles=2)
-   11:28:13 [WE XCX] 正在连接到 wss://www.xxxxxx.top/ocms/v1/stream?apiKey=sk-api-xxxxxxx...
-   11:28:13 [WE XCX] 已连接！
+   11:28:13 [cloud-bot-channel] 正在连接到 wss://www.xxxxxx.top/ocms/v1/stream?apiKey=sk-api-xxxxxxx...
+   11:28:13 [cloud-bot-channel] 已连接！
    11:28:56 [ws] webchat connected conn=46afc5d5-a994-4bad-b758-20962c0c5f7d remote=127.0.0.1 client=openclaw-control-ui webchat vdev
    ```
 

@@ -2,18 +2,18 @@
 set -e
 
 # -----------------------------------------------------------------------------
-# 插件打包脚本 (we-xcx)
+# 插件打包脚本 (cloud-bot-channel)
 # 
 # 功能：
 # 1. 编译项目 (npm run build)
-# 2. 创建临时目录 we-xcx
+# 2. 创建临时目录 cloud-bot-channel
 # 3. 复制构建产物和配置到临时目录
 # 4. 安装生产依赖
-# 5. 打包 we-xcx 目录
+# 5. 打包 cloud-bot-channel 目录
 # -----------------------------------------------------------------------------
 
 # 配置
-PLUGIN_NAME="we-xcx"
+PLUGIN_NAME="cloud-bot-channel"
 OUTPUT_DIR="channel"
 OUTPUT_FILENAME="${PLUGIN_NAME}.zip"
 TEMP_BUILD_DIR="build_temp"

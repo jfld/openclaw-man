@@ -1,12 +1,12 @@
-# WE XCX 通道插件功能与协议说明
+# cloud-bot-channel 通道插件功能与协议说明
 
-本文档基于 `index.ts` 源码，详细说明 WE XCX (微信小程序) 通道插件的功能、WebSocket 连接方式以及消息收发协议格式。
+本文档基于 `index.ts` 源码，详细说明 cloud-bot-channel (微信小程序) 通道插件的功能、WebSocket 连接方式以及消息收发协议格式。
 
 ## 1. 插件功能概述
 
 `openclaw-man-we-app-channel` 是一个 OpenClaw 的通道插件 (Channel Plugin)，其核心功能包括：
 
-*   **双向通信**: 通过 WebSocket 全双工协议连接到外部聊天服务 (WE XCX Service)。
+*   **双向通信**: 通过 WebSocket 全双工协议连接到外部聊天服务 (cloud-bot-channel Service)。
 *   **消息接收**: 监听 WebSocket 消息，将来自外部服务的用户消息转换为 OpenClaw 内部格式，并分发给智能体 (Agent) 处理。
 *   **消息回复**: 接收智能体生成的回复，将其封装为特定 JSON 格式，通过 WebSocket 发送回外部服务。
 *   **文件接收**: 支持接收用户上传的文件，通过 server 服务的 `/download/file` 接口下载文件到 agent workspace。
@@ -61,7 +61,7 @@ wss://www.xxxxxx.top/v1/stream?apiKey=YOUR_API_KEY
     *   `text`: 必填（除非提供 filePath）。用户发送的实际文本内容。
     *   `userId`: 必填。发送消息的微信用户 ID (OpenID 或其他唯一标识)。插件将其映射为 OpenClaw 的 `From` 和 `SenderId`。
     *   `conversationId`: 选填。对话的唯一标识 ID。如果提供，将在回复消息中原样返回。插件将其用作 OpenClaw 的 `ConversationLabel`。
-    *   `id`: 选填。消息的唯一 ID。如果未提供，插件将生成格式为 `we-xcx-{timestamp}` 的 ID。
+    *   `id`: 选填。消息的唯一 ID。如果未提供，插件将生成格式为 `cloud-bot-channel-{timestamp}` 的 ID。
     *   `filePath`: 选填。server 服务中上传文件的绝对路径（如 `/upload/xxx/file.pdf`）。如果提供，插件将使用 `serverUrl` 配置调用 `/download/file` 接口下载文件。
     *   `mediaType`: 选填。媒体类型，可选值包括 `file`、`image`、`audio`、`video`。与 `filePath` 配合使用。
 
@@ -69,7 +69,7 @@ wss://www.xxxxxx.top/v1/stream?apiKey=YOUR_API_KEY
 1.  插件解析 JSON。
 2.  提取 `text`, `userId`, `conversationId`, `id`, `filePath`, `mediaType`。
 3.  如果提供 `filePath` 和 `mediaType`，调用 server 服务的 `/download/file` 接口下载文件到 agent workspace 的 `media/inbound` 目录。
-4.  构建 OpenClaw 上下文 (`ctxPayload`)，其中 `From` 被设置为 `we-xcx:{userId}`，`ConversationLabel` 被设置为 `conversationId` (若未提供则默认为 "default")。
+4.  构建 OpenClaw 上下文 (`ctxPayload`)，其中 `From` 被设置为 `cloud-bot-channel:{userId}`，`ConversationLabel` 被设置为 `conversationId` (若未提供则默认为 "default")。
 5.  如果文件下载成功，传入 `MediaPath` 和 `MediaMimeType` 到上下文。
 6.  调用 `core.channel.reply.dispatchReplyFromConfig` 将消息路由给配置的 Agent。
 

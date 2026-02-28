@@ -1,7 +1,7 @@
 {
-  "name": "we-xcx",
+  "name": "cloud-bot-channel",
   "version": "1.0.0",
-  "description": "WE XCX Channel Integration",
+  "description": "cloud-bot-channel Channel Integration",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [

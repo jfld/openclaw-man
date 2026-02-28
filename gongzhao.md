@@ -30,7 +30,7 @@ OpenClaw Man 采用模块化设计，由三个核心部分组成，共同完成�
 graph LR
     User((用户)) <--> |微信| App[OpenClaw Man 小程序]
     App <--> |WebSocket| Server[OpenClaw Man Server]
-    Server <--> |WebSocket/HTTP| Plugin[OpenClaw WE XCX 插件]
+    Server <--> |WebSocket/HTTP| Plugin[OpenClaw cloud-bot-channel 插件]
     Plugin <--> |内部协议| Core[OpenClaw Core]
 ```
 
@@ -45,9 +45,9 @@ graph LR
 *   **职责**：由于微信小程序对通信协议有严格要求，且 OpenClaw 内部协议较为复杂，Server 端负责维护与小程序的 WebSocket 长连接，处理用户鉴权（Session 管理），并将消息路由转发给 OpenClaw。
 *   **技术栈**：Python, FastAPI, Websockets, MySQL。
 
-### 3.3 OpenClaw WE XCX Channel (OpenClaw 插件)
+### 3.3 OpenClaw cloud-bot-channel Channel (OpenClaw 插件)
 这是安装在 OpenClaw 内部的适配器。
-*   **职责**：它在 OpenClaw 中注册了一个名为 `we-xcx` 的新渠道。它负责将来自 Server 的消息转换为 OpenClaw 能理解的格式，并将 AI 的流式回复（Streaming Response）实时回传给 Server。
+*   **职责**：它在 OpenClaw 中注册了一个名为 `cloud-bot-channel` 的新渠道。它负责将来自 Server 的消息转换为 OpenClaw 能理解的格式，并将 AI 的流式回复（Streaming Response）实时回传给 Server。
 *   **技术栈**：Node.js (OpenClaw 插件标准)。
 
 ## 4. 开源地址

@@ -119,5 +119,5 @@ docker-compose restart
 
 更多开发细节请参考 `docs/` 目录下的文档：
 - [API 对话接口说明](docs/api-conversations.md)
-- [微信集成协议](docs/we-xcx-protocol.md)
+- [微信集成协议](docs/cloud-bot-channel-protocol.md)
 - [微信 WebSocket 集成](docs/wechat-websocket-integration.md)

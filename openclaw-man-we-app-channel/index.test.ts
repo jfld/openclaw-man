@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import plugin from './index';
 
-describe('WE XCX Plugin', () => {
+describe('cloud-bot-channel Plugin', () => {
   it('should define basic plugin properties', () => {
-    expect(plugin.id).toBe('we-xcx');
-    expect(plugin.name).toBe('WE XCX');
+    expect(plugin.id).toBe('cloud-bot-channel');
+    expect(plugin.name).toBe('cloud-bot-channel');
     expect(plugin.register).toBeDefined();
   });
 
